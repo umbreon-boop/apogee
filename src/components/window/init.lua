@@ -244,8 +244,8 @@ function Window.New(config: Config, parent: Instance): any
 		self:_updateTabSection(self.Root.Size.X.Offset)
 	end)
 
-	Input.Connect(self, function(size)
-		return self:_fitResize(size)
+	Input.Connect(self, function(proposedSize)
+		return self:_fitResize(proposedSize)
 	end)
 	table.insert(windows, self)
 	State.Current = self

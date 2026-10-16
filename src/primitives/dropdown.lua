@@ -184,21 +184,21 @@ function Dropdown.New(config: Config, parent: any): any
 			Themed = {ImageColor3 = "ControlBorder"}
 		}),
 		Icon.New(Icons.GetIcon("chevron-down"), {
-			Name = "Chevron",
-			Size = UDim2.fromOffset(14, 14),
-			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -6, 0.5, 0),
-			BackgroundTransparency = 1,
-			Themed = {ImageColor3 = "SubText"}
-		}),
+				Name = "Chevron",
+				Size = UDim2.fromOffset(14, 14),
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, -6, 0.5, 0),
+				BackgroundTransparency = 1,
+				Themed = {ImageColor3 = "SubText"}
+			}),
 		display
 	})
 	Theme:Height(inner, "Control")
 
 	-- a theme without icons gives the value the space of the chevron
 	Icon.Watch(inner:FindFirstChild("Chevron"), function(shown)
-		display.Size = UDim2.new(1, if shown then -24 else -16, 0, 14)
-	end)
+			display.Size = UDim2.new(1, if shown then -24 else -16, 0, 14)
+		end)
 
 	local _, innerFade = Motion.Bind(1, inner:FindFirstChild("Hover"), "ImageTransparency", true)
 	Pointer.Hover(inner, innerFade, {Rest = 1, Hover = 0.88, Press = 0.82})

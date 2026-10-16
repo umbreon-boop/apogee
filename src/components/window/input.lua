@@ -254,8 +254,8 @@ function WindowInput.Connect(self: any, fit: (Vector2) -> Vector2)
 		end, self.Root)
 
 	self._tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-			self.TabHolder.CanvasSize = UDim2.fromOffset(0, Measure.Offset(self.TabHolder, self._tabLayout.AbsoluteContentSize.Y))
-		end)
+		self.TabHolder.CanvasSize = UDim2.fromOffset(0, Measure.Offset(self.TabHolder, self._tabLayout.AbsoluteContentSize.Y))
+	end)
 end
 
 return WindowInput

@@ -162,8 +162,8 @@ function Dialog.New(window: any): any
 	Fade.Hide(self.Root)
 	-- the card stays centered on whole pixels while the window changes size
 	State.Connect(root:GetPropertyChangedSignal("Size"), function()
-		self:_place()
-	end, self.TintFrame)
+			self:_place()
+		end, self.TintFrame)
 
 	Theme:Track(function()
 		self:_updateLayout()

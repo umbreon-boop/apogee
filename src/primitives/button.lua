@@ -45,14 +45,14 @@ function Button.New(config: Config, parent: any): any
 	element.LabelHolder.Size = UDim2.new(1, -40, 0, 0)
 
 	local chevron = Icon.New(Icons.GetIcon("chevron-right"), {
-		Name = "Chevron",
-		Size = UDim2.fromOffset(16, 16),
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -12, 0.5, 0),
-		BackgroundTransparency = 1,
-		Parent = element.Frame,
-		Themed = {ImageColor3 = "Text"}
-	})
+			Name = "Chevron",
+			Size = UDim2.fromOffset(16, 16),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -12, 0.5, 0),
+			BackgroundTransparency = 1,
+			Parent = element.Frame,
+			Themed = {ImageColor3 = "Text"}
+		})
 	-- a theme without icons gives the label the space of the chevron
 	Icon.Watch(chevron, function(shown)
 		element.LabelHolder.Size = UDim2.new(1, if shown then -40 else -24, 0, 0)

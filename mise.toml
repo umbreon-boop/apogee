@@ -4,12 +4,12 @@
 "github:astral-sh/uv" = "latest"
 
 # `umbra` depends on `luajit` as it is itself mostly written in Lua
-"github:umbreon-boop/umbra" = "latest"
+"github:umbreon-boop/umbra" = "0.2.2"
 luajit = "latest"
 
 [tasks.build]
 description = "Build the project"
-run = "umbra build"
+run = "umbra update && umbra build"
 
 [tasks.serve]
 description = "Locally serve the built project"
@@ -29,6 +29,7 @@ run = "umbra fmt && selene src/*"
 description = "Build the examples and run the interface tests against the mocked environment"
 run = """
 set -e
+umbra update
 mkdir -p dist/examples
 for file in examples/*.lua; do
 	umbra build "$file" -o "dist/examples/$(basename "$file")"

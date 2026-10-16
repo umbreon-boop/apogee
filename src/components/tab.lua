@@ -60,12 +60,12 @@ function Tab.New(config: Config, window: any): any
 	})
 
 	local image = Icon.New(Icons.GetIcon(config.Icon), {
-		AnchorPoint = Vector2.new(0, 0.5),
-		Size = UDim2.fromOffset(16, 16),
-		Position = UDim2.new(0, 8, 0.5, 0),
-		BackgroundTransparency = 1,
-		Themed = {ImageColor3 = "Text"}
-	})
+			AnchorPoint = Vector2.new(0, 0.5),
+			Size = UDim2.fromOffset(16, 16),
+			Position = UDim2.new(0, 8, 0.5, 0),
+			BackgroundTransparency = 1,
+			Themed = {ImageColor3 = "Text"}
+		})
 	self._icon = image
 
 	local function updateTabLayout(width: number)
@@ -87,8 +87,8 @@ function Tab.New(config: Config, window: any): any
 		updateTabLayout(window.TabWidth)
 	end)
 	label:GetPropertyChangedSignal("TextBounds"):Connect(function()
-			updateTabLayout(window.TabWidth)
-		end)
+		updateTabLayout(window.TabWidth)
+	end)
 
 	local layout = Creator:New("UIListLayout", {Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder})
 	rawset(self, "Container", Creator:New("ScrollingFrame", {

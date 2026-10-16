@@ -67,13 +67,13 @@ function Minimizer.New(config: Config, window: any): any
 	local self = Class.New(Minimizer, {_window = window, _size = size})
 
 	local icon = Icon.New(Icons.GetIcon(config.Icon or DEFAULT_ICON), {
-		Name = "Icon",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromScale(0.5, 0.5),
-		BackgroundTransparency = 1,
-		Themed = {ImageColor3 = "Text"}
-	})
+			Name = "Icon",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(0.5, 0.5),
+			BackgroundTransparency = 1,
+			Themed = {ImageColor3 = "Text"}
+		})
 	Icon.Watch(icon, function() end)
 	local body = Creator:New("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ClipsDescendants = true})
 	local scale = Creator:New("UIScale", {Scale = 1})

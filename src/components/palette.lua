@@ -355,22 +355,22 @@ function Palette:_connect()
 
 	fields.Hex.FocusLost:Connect(commitHex)
 	fields.Hex:GetPropertyChangedSignal("Text"):Connect(function()
-			-- only typed text: `Display` also writes the hex, and parsing it back would round the color and reset the hue
-			if not fields.Hex:IsFocused() then
-				return
+		-- only typed text: `Display` also writes the hex, and parsing it back would round the color and reset the hue
+		if not fields.Hex:IsFocused() then
+			return
+		end
+		local text = string.gsub(fields.Hex.Text, "[#%s]", "")
+		if #text == 6 then
+			local success, color = pcall(Color3.fromHex, text)
+			if success and typeof(color) == "Color3" then
+				local h, s, v = color:ToHSV()
+				self.Hue = h
+				self.Sat = s
+				self.Vib = v
+				self:Display()
 			end
-			local text = string.gsub(fields.Hex.Text, "[#%s]", "")
-			if #text == 6 then
-				local success, color = pcall(Color3.fromHex, text)
-				if success and typeof(color) == "Color3" then
-					local h, s, v = color:ToHSV()
-					self.Hue = h
-					self.Sat = s
-					self.Vib = v
-					self:Display()
-				end
-			end
-		end)
+		end
+	end)
 
 	for _, channel in {"Red", "Green", "Blue"} do
 		local field = fields[channel]
@@ -402,10 +402,10 @@ function Palette:_connect()
 		end)
 
 		Drag.Bind(grip(self._alphaSlider), function(position)
-			local slider = self._alphaSlider
-			self.Transparency = fraction(position.Y, slider.AbsolutePosition.Y, slider.AbsoluteSize.Y)
-			self:Display()
-		end, self._scrollFrame)
+				local slider = self._alphaSlider
+				self.Transparency = fraction(position.Y, slider.AbsolutePosition.Y, slider.AbsoluteSize.Y)
+				self:Display()
+			end, self._scrollFrame)
 	end
 
 	Drag.Bind(self._map, function(position)
@@ -416,10 +416,10 @@ function Palette:_connect()
 	end, self._scrollFrame)
 
 	Drag.Bind(grip(self._hueSlider), function(position)
-		local slider = self._hueSlider
-		self.Hue = fraction(position.Y, slider.AbsolutePosition.Y, slider.AbsoluteSize.Y)
-		self:Display()
-	end, self._scrollFrame)
+			local slider = self._hueSlider
+			self.Hue = fraction(position.Y, slider.AbsolutePosition.Y, slider.AbsoluteSize.Y)
+			self:Display()
+		end, self._scrollFrame)
 end
 
 function Palette:Display()

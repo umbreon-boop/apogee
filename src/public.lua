@@ -143,13 +143,13 @@ local Config, Icons, Notification, Theme, Creator, Popup, Window
 local Localization
 
 --[=[
-    Calls an optional user callback without allowing its error to interrupt interface logic.
-    On failure, shows a five second error notification and returns no values; on success,
-    returns every value produced by the callback.
+	    Calls an optional user callback without allowing its error to interrupt interface logic.
+	    On failure, shows a five second error notification and returns no values; on success,
+	    returns every value produced by the callback.
 
-	@param handler ((...any) -> ...any)? -- The function to call
-	@param ... any -- The arguments to pass
-	@return ...any -- The function's results when it succeeds
+		@param handler ((...any) -> ...any)? -- The function to call
+		@param ... any -- The arguments to pass
+		@return ...any -- The function's results when it succeeds
 ]=]
 function Apogee:SafeCallback(handler: ((...any) -> ...any)?, ...: any): ...any
 	if not handler then
