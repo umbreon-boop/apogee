@@ -7,6 +7,9 @@
 "github:umbreon-boop/umbra" = "0.2.2"
 luajit = "latest"
 
+# required for the CI workflow
+"github:lune-org/lune" = "latest"
+
 [tasks.build]
 description = "Build the project"
 run = "umbra update && umbra build"
