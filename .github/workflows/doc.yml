@@ -1,0 +1,23 @@
+name: docs
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v6
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+      - run: mise run doc
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/site
+      - id: deployment
+        uses: actions/deploy-pages@v5

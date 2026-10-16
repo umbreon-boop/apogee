@@ -1,0 +1,17 @@
+[project]
+site_name = "Apogee Documentation"
+site_dir = "docs/site"
+use_directory_urls = true
+
+[project.theme.icon]
+logo = "lucide/orbit"
+
+[[project.theme.palette]]
+scheme = "slate"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "default"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"

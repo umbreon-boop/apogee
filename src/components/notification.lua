@@ -1,0 +1,255 @@
+--[=[
+	Toast notifications that slide in from the bottom right corner of the screen,
+	featuring a clean custom icon, title, content, and squircle card styling.
+
+	@class Notification
+	@location internals/components
+]=]
+local State = require("../public")
+local Backdrop = require("./backdrop")
+local Icon = require("./icon")
+local Icons = require("../assets/icons")
+local Motion = require("../services/motion")
+local Pointer = require("../services/pointer")
+local Squircle = require("./frame")
+local Style = require("../assets/themes")
+local Theme = require("../services/theme")
+local Creator = require("../services/creator")
+local Maid = require("@aria/maid")
+local Measure = require("../services/measure")
+
+--[=[
+	@interface NotificationConfig
+	.Title string?
+	.Content string?
+	.SubContent string?
+	.Duration number? -- Seconds until the toast closes, 5 by default
+	.Icon (string | boolean)? -- Icon name, image asset id, or false to hide
+	@within Notification
+]=]
+export type Config = {
+	Title: string?, Content: string?, SubContent: string?, Duration: number?,
+	Icon: (string | boolean)?, Width: number?
+}
+
+local Notification = {Holder = nil}
+Notification.__index = Notification
+local PAD = 14
+local ICON_SIZE = 22
+local CLOSE_SIZE = 20
+local FIXED_HEIGHT = 58
+local MIN_WIDTH = 200
+local MAX_WIDTH = 450
+local TRANSITION_DURATION = 0.2
+local TRANSITION_EASING = Enum.EasingStyle.Quint
+local TRANSITION_DIRECTION = Enum.EasingDirection.Out
+
+local function label(text: string, size: number, weight: Enum.FontWeight, key: string): TextLabel
+	return Creator:New("TextLabel", {
+		FontFace = Font.new(Style.Font, weight, Enum.FontStyle.Normal),
+		Text = text,
+		TextSize = size,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		AutomaticSize = Enum.AutomaticSize.Y,
+		Size = UDim2.fromScale(1, 0),
+		BackgroundTransparency = 1,
+		TextWrapped = true,
+		RichText = true,
+		Visible = text ~= "",
+		Themed = {TextColor3 = key}
+	})
+end
+
+--[=[
+	Creates the stack every notification is placed in.
+
+	@param gui ScreenGui -- The screen gui to draw notifications in
+]=]
+function Notification.Init(gui: ScreenGui)
+	Notification.Holder = Creator:New("Frame", {
+		Position = UDim2.new(1, -24, 1, -24),
+		Size = UDim2.new(0, MAX_WIDTH, 1, -24),
+		AnchorPoint = Vector2.new(1, 1),
+		BackgroundTransparency = 1,
+		Parent = gui
+	}, {
+		Creator:New("UIListLayout", {
+			HorizontalAlignment = Enum.HorizontalAlignment.Right,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			VerticalAlignment = Enum.VerticalAlignment.Bottom,
+			Padding = UDim.new(0, Style.Space.XXS)
+		})
+	})
+end
+
+--[=[
+	Shows a new notification with custom icon, title, and contents.
+
+	@param config Config -- Toast content, duration, icon, and width.
+	@param window any? -- The owning window
+	@return [Notification](Notification.md) -- The newly created notification toast.
+]=]
+function Notification.New(config: Config, window: any?): any
+	local self = setmetatable({Closed = false, _window = window}, Notification)
+
+	-- Custom Icon
+	local iconName = config.Icon
+	local iconAsset: string? = nil
+	if iconName ~= false then
+		if type(iconName) == "string" and iconName ~= "" then
+			iconAsset = Icons.GetIcon(iconName)
+		else
+			iconAsset = Icons.GetIcon("bell")
+		end
+	end
+
+	-- the left edge of the text, after the icon when the icon shows
+	local iconLeft = PAD + ICON_SIZE + 10
+	local textLeft = PAD
+	self.Icon = Icon.New(iconAsset, {
+		Size = UDim2.fromOffset(ICON_SIZE, ICON_SIZE),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0, math.floor(iconLeft / 2), 0.5, 0),
+		BackgroundTransparency = 1,
+		Themed = {ImageColor3 = "Accent"}
+	})
+
+	-- Title and Contents
+	self.Title = label(config.Title or "Notification", Style.Type.Body, Enum.FontWeight.Bold, "Text")
+	self.ContentLabel = label(config.Content or "", Style.Type.Small, Enum.FontWeight.Regular, "Text")
+
+	self.LabelHolder = Creator:New("Frame", {
+		AutomaticSize = Enum.AutomaticSize.Y,
+		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundTransparency = 1,
+		ClipsDescendants = true
+	}, {
+		Creator:New("UISizeConstraint", {
+			MaxSize = Vector2.new(math.huge, FIXED_HEIGHT - 2 * PAD)
+		}),
+		Creator:New("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Padding = UDim.new(0, 2)
+		}),
+		self.Title,
+		self.ContentLabel
+	})
+
+	-- Rounded square close button
+	local closeHover = Squircle.New(Style.Squircle.Small, {
+		ImageTransparency = 1,
+		Themed = {ImageColor3 = "Hover"}
+	})
+	local closeIcon = Creator:New("ImageLabel", {
+		Image = Icons.GetIcon("x"),
+		Size = UDim2.fromOffset(14, 14),
+		Position = UDim2.fromScale(0.5, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundTransparency = 1,
+		Themed = {ImageColor3 = "SubText"}
+	})
+	self.CloseButton = Creator:New("TextButton", {
+		Text = "",
+		Position = UDim2.new(1, -PAD, 0.5, 0),
+		Size = UDim2.fromOffset(CLOSE_SIZE, CLOSE_SIZE),
+		AnchorPoint = Vector2.new(1, 0.5),
+		BackgroundTransparency = 1
+	}, {closeHover, closeIcon})
+
+	local _, closeFade = Motion.Bind(1, closeHover, "ImageTransparency", true)
+	Pointer.Hover(self.CloseButton, closeFade, {Rest = 1, Hover = 0.85, Press = 0.7})
+
+	-- No window drop shadow: its square corners peek out past the small rounded toast
+	local surface = Backdrop.New(Style.Squircle.Container, false)
+	Theme:Override(surface.Background, {ImageColor3 = "Overlay"})
+	surface.Background.ImageTransparency = if window then window.Transparency or 0 else 0
+
+	self.Root = Creator:New("Frame", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Position = UDim2.new(1, 60, 0, 0),
+		ClipsDescendants = true
+	}, {surface, self.Icon, self.CloseButton, self.LabelHolder})
+
+	self.Holder = Creator:New("Frame", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromOffset(MIN_WIDTH, FIXED_HEIGHT),
+		Parent = Notification.Holder
+	}, {self.Root})
+
+	self.CloseButton.MouseButton1Click:Connect(function()
+		self:Close()
+	end)
+
+	local function updateSize()
+		local textWidth = math.max(Measure.Text(self.Title).X, Measure.Text(self.ContentLabel).X)
+		local naturalWidth = textLeft + textWidth + 12 + CLOSE_SIZE + PAD
+		local targetWidth = config.Width or math.clamp(naturalWidth, MIN_WIDTH, MAX_WIDTH)
+		self.Holder.Size = UDim2.fromOffset(targetWidth, FIXED_HEIGHT)
+	end
+
+	for _, textObj in {self.Title, self.ContentLabel} do
+		textObj:GetPropertyChangedSignal("Text"):Connect(updateSize)
+	end
+	-- a theme without icons moves the text to the left edge
+	Icon.Watch(self.Icon, function(shown)
+		textLeft = if shown then iconLeft else PAD
+		self.LabelHolder.Size = UDim2.new(1, -(textLeft + PAD + CLOSE_SIZE + 6), 0, 0)
+		self.LabelHolder.Position = UDim2.new(0, textLeft, 0.5, 0)
+		updateSize()
+	end)
+
+	self:Open()
+	if window then
+		State:Adopt(window, self)
+	end
+	task.delay(config.Duration or 5, function()
+		self:Close()
+	end)
+
+	return self
+end
+
+--[=[
+	Animates the notification into view.
+]=]
+function Notification:Open()
+	Motion.Tween(self.Root, {Position = UDim2.fromScale(0, 0)}, TRANSITION_DURATION, TRANSITION_EASING, TRANSITION_DIRECTION)
+end
+
+--[=[
+	Slides the notification out and destroys it.
+]=]
+function Notification:Close()
+	if self.Closed then
+		return
+	end
+
+	self.Closed = true
+	Motion.Tween(self.Root, {Position = UDim2.new(1, 60, 0, 0)}, TRANSITION_DURATION, TRANSITION_EASING, TRANSITION_DIRECTION, function(state)
+		if state ~= Enum.PlaybackState.Completed then
+			return
+		end
+		self:Destroy()
+	end)
+end
+
+function Notification:SetTransparency(value: number)
+	local background = self.Root and self.Root:FindFirstChild("Background", true)
+	if background then
+		background.ImageTransparency = value
+	end
+end
+
+function Notification:Destroy()
+	State:Orphan(self)
+	if self.Holder then
+		self.Holder.Visible = false
+		local maid = Maid.new()
+		maid:Task(self.Holder)
+		maid:DeferredClean(0.01)
+	end
+end
+
+return Notification

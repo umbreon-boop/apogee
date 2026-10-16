@@ -1,0 +1,43 @@
+[tools]
+# mise's `pipx:` backend falls back to uv/uvx when pipx isn't installed,
+# so uv is required for the zensical tasks to work on a fresh machine.
+"github:astral-sh/uv" = "latest"
+
+# `umbra` depends on `luajit` as it is itself mostly written in Lua
+"github:umbreon-boop/umbra" = "latest"
+luajit = "latest"
+
+[tasks.build]
+description = "Build the project"
+run = "umbra build"
+
+[tasks.serve]
+description = "Locally serve the built project"
+tools = { "pipx:zensical" = "latest" }
+run = "trap 'kill 0' SIGINT && python -m http.server 3000 & zensical serve -f zensical.toml & wait"
+
+[tasks.fmt]
+description = "Formats the project"
+run = "umbra fmt"
+
+[tasks.lint]
+description = "Check code quality without modifying files"
+tools = { "aqua:Kampfkarren/selene" = "latest" }
+run = "umbra fmt && selene src/*"
+
+[tasks.test]
+description = "Build the examples and run the interface tests against the mocked environment"
+run = """
+set -e
+mkdir -p dist/examples
+for file in examples/*.lua; do
+	umbra build "$file" -o "dist/examples/$(basename "$file")"
+done
+cp dist/examples/showcase.lua dist/showcase.lua
+lune run tests/ui.luau dist/showcase.lua
+"""
+
+[tasks.doc]
+description = "Build the documentation"
+tools = { "pipx:zensical" = "latest" }
+run = "rm -f docs/API/*.md && umbra doc && zensical build -f zensical.toml"

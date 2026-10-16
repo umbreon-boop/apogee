@@ -1,0 +1,88 @@
+return function(t)
+	local Apogee = t.Apogee
+	local check = t.check
+	local input = t.input
+	local pointer = t.pointer
+	local prevTabW = t.prevTabW
+	local roblox = t.roblox
+	local rowA = t.rowA
+	local setViewport = t.setViewport
+	local slider = t.slider
+	local step = t.step
+	local win = t.win
+
+	-- responsive window -----------------------------------------------------------
+	check(win.Root.Size.X.Offset == 1280 and win.Root.Size.Y.Offset == 720, "the window is initialized as 2/3 on each direction")
+	setViewport(800, 360)
+	step(10)
+	check(win.Root.Size.Y.Offset == 328, "the window shrinks to fit a phone sized screen")
+	setViewport(1920, 1080)
+	step(10)
+	check(win.Root.Size.X.Offset == 1280 and win.Root.Size.Y.Offset == 720, "the window grows back to its preferred size")
+
+	-- empty dropdown --------------------------------------------------------------
+	local emptyDropdown = win.Tabs[1]:Dropdown({Title = "Empty", Values = {}})
+	emptyDropdown:Open()
+	check(not emptyDropdown.Opened and not emptyDropdown._canvas.Visible, "dropdown does not open with 0 elements")
+
+	-- centered element text -------------------------------------------------------
+	check(rowA._element.LabelHolder.Position.Y.Scale == 0.5 and rowA._element.LabelHolder.AnchorPoint.Y == 0.5, "element text is vertically centered")
+
+	-- touch slider ----------------------------------------------------------------
+	local knob = Apogee.ThemeService:Look(slider.Frame).Knob
+	local hitbox
+	for _, child in knob.Parent.Parent:GetChildren() do
+		if child.ClassName == "TextButton" then
+			hitbox = child
+		end
+	end
+	local finger = pointer("Touch", 150, 0)
+	local scroll = win.Tabs[1].Container
+	hitbox.InputBegan:Fire(finger)
+	check(slider.Value == 2.5 and scroll.ScrollingEnabled == false, "a touch jumps the slider and locks scrolling")
+	input.InputChanged:Fire(pointer("Touch", 100, 0))
+	check(slider.Value == 2.5, "other fingers do not move the slider")
+	finger.Position = roblox.Vector3.new(200, 0, 0)
+	input.InputChanged:Fire(finger)
+	check(slider.Value == 5, "the same finger drags the slider")
+	input.InputEnded:Fire(finger)
+	check(scroll.ScrollingEnabled == true, "releasing unlocks scrolling")
+
+	-- minimizer -------------------------------------------------------------------
+	local minimizer = win.Minimizer
+	check(not minimizer.Enabled and not minimizer.Frame.Visible, "the minimizer is disabled without touch")
+	minimizer.Enabled = true
+	check(not minimizer.Frame.Visible, "the minimizer stays hidden while the window is open")
+	local windowSizeBeforeMinimize, windowPositionBeforeMinimize = win.Root.Size, win.Root.Position
+	win:Minimize()
+	check(minimizer.Frame.Visible, "the minimizer shows once the window is minimized")
+	check(win.Root.Size == windowSizeBeforeMinimize and win._rootScale.Scale == 1,
+		"minimize fades and slides without resizing or scaling the window contents")
+	minimizer:_moveTo(roblox.Vector2.new(100, 0))
+	check(minimizer.Position.Y.Offset == minimizer._size / 2 - 36, "the minimizer reaches the viewport's top edge")
+	local tap = pointer("Touch", 40, 500)
+	minimizer.Frame.InputBegan:Fire(tap)
+	tap.Position = roblox.Vector3.new(300, 200, 0)
+	input.InputChanged:Fire(tap)
+	input.InputEnded:Fire(tap)
+	check(win.Minimized and minimizer.Position.X.Offset ~= 40, "dragging moves the minimizer without restoring")
+	minimizer.Frame.InputBegan:Fire(tap)
+	input.InputEnded:Fire(tap)
+	check(not win.Minimized and not minimizer.Frame.Visible, "a tap restores the window and hides the minimizer")
+	check(win.Root.Size == windowSizeBeforeMinimize and win.Root.Position == windowPositionBeforeMinimize and win._rootScale.Scale == 1, "restore animation returns the window to its saved geometry")
+	win:Maximize(true)
+	check(win.Maximized and win.Root.Size == win.Size and win.Root.Position == roblox.UDim2.fromOffset(0, 0), "maximize animation fills the viewport")
+	check(win.TabWidth == prevTabW and win._tabFrame.Size.X.Offset == prevTabW, "tab width is preserved during maximization")
+	win:Maximize(false)
+	check(not win.Maximized and win.Root.Size == windowSizeBeforeMinimize, "unmaximize animation restores the previous size")
+	check(win.TabWidth == prevTabW and win._tabFrame.Size.X.Offset == prevTabW, "tab width is preserved after restoring from maximize")
+
+	-- multiple windows ------------------------------------------------------------
+	local second = Apogee:Window({Title = "Second", SubTitle = ""})
+	check(#Apogee.Windows == 2 and Apogee.Current == second, "a second window can open")
+	second:Destroy()
+	check(#Apogee.Windows == 1 and Apogee.Current == win, "destroying a window hands Current back")
+
+	t.Apogee = Apogee
+	t.win = win
+end

@@ -1,0 +1,485 @@
+base: luau
+name: sunc
+
+structs:
+  Drawing:
+    Visible:
+      any: true
+    ZIndex:
+      any: true
+    Transparency:
+      any: true
+    Color:
+      any: true
+    __OBJECT_EXISTS:
+      any: true
+
+  Connection:
+    Enabled:
+      any: true
+    ForeignState:
+      any: true
+    LuaConnection:
+      any: true
+    Function:
+      any: true
+    Thread:
+      any: true
+
+  WebSocket:
+    OnMessage:
+      any: true
+    OnClose:
+      any: true
+
+  RequestOptions:
+    Url:
+      any: true
+    Method:
+      any: true
+    Body:
+      any: true
+    Headers:
+      any: true
+    Cookies:
+      any: true
+
+  Response:
+    Success:
+      any: true
+    Body:
+      any: true
+    StatusCode:
+      any: true
+    StatusMessage:
+      any: true
+    Headers:
+      any: true
+
+globals:
+  # Closures
+  checkcaller:
+    args: []
+    must_use: true
+
+  clonefunction:
+    args:
+      - type: function
+
+  getfunctionhash:
+    args:
+      - type: function
+    must_use: true
+
+  hookfunction:
+    args:
+      - type: function
+      - type: function
+
+  hookmetamethod:
+    args:
+      - type: any
+      - type: string
+      - type: function
+
+  iscclosure:
+    args:
+      - type: function
+    must_use: true
+
+  isexecutorclosure:
+    args:
+      - type: function
+    must_use: true
+
+  islclosure:
+    args:
+      - type: function
+    must_use: true
+
+  loadstring:
+    args:
+      - type: string
+      - type: string
+        required: false
+
+  newcclosure:
+    args:
+      - type: function
+
+  restorefunction:
+    args:
+      - type: function
+
+  # Debug
+  debug.getconstant:
+    args:
+      - type: function
+      - type: number
+    method: true
+
+  debug.getconstants:
+    args:
+      - type: function
+    method: true
+
+  debug.getinfo:
+    args:
+      - type: function
+      - type: string
+        required: false
+    method: true
+    deprecated:
+      message: "debug.getinfo is deprecated"
+
+  debug.getproto:
+    args:
+      - type: function
+      - type: number
+        required: false
+    method: true
+
+  debug.getprotos:
+    args:
+      - type: function
+    method: true
+
+  debug.getstack:
+    args:
+      - type: number
+      - type: number
+        required: false
+    method: true
+
+  debug.getupvalue:
+    args:
+      - type: function
+      - type: number
+    method: true
+
+  debug.getupvalues:
+    args:
+      - type: function
+    method: true
+
+  debug.setconstant:
+    args:
+      - type: function
+      - type: number
+      - type: any
+    method: true
+
+  debug.setstack:
+    args:
+      - type: number
+      - type: number
+      - type: any
+    method: true
+
+  debug.setupvalue:
+    args:
+      - type: function
+      - type: number
+      - type: any
+    method: true
+
+  debug.traceback:
+    args:
+      - type: string
+        required: false
+      - type: number
+        required: false
+    method: true
+    deprecated:
+      message: "debug.traceback is deprecated"
+
+  # Drawing
+  Drawing.new:
+    args:
+      - type: string
+
+  cleardrawcache:
+    args: []
+
+  getrenderproperty:
+    args:
+      - type: table
+      - type: string
+
+  isrenderobj:
+    args:
+      - type: any
+    must_use: true
+
+  setrenderproperty:
+    args:
+      - type: table
+      - type: string
+      - type: any
+
+  # Encoding
+  base64decode:
+    args:
+      - type: string
+
+  base64encode:
+    args:
+      - type: string
+
+  lz4compress:
+    args:
+      - type: string
+
+  lz4decompress:
+    args:
+      - type: string
+
+  # Environment
+  filtergc:
+    args:
+      - type: string
+      - type: table
+      - type: bool
+        required: false
+
+  getgc:
+    args:
+      - type: bool
+        required: false
+
+  getgenv:
+    args: []
+    property: full-write
+
+  getreg:
+    args: []
+    property: read-only
+
+  getrenv:
+    args: []
+    property: read-only
+
+  # Filesystem
+  appendfile:
+    args:
+      - type: string
+        observes: read
+      - type: string
+        observes: write
+
+  delfile:
+    args:
+      - type: string
+        observes: read
+
+  delfolder:
+    args:
+      - type: string
+        observes: read
+
+  getcustomasset:
+    args:
+      - type: string
+        observes: read
+
+  isfile:
+    args:
+      - type: string
+        observes: read
+    must_use: true
+
+  isfolder:
+    args:
+      - type: string
+        observes: read
+    must_use: true
+
+  listfiles:
+    args:
+      - type: string
+        observes: read
+
+  loadfile:
+    args:
+      - type: string
+        observes: read
+
+  makefolder:
+    args:
+      - type: string
+        observes: read
+
+  readfile:
+    args:
+      - type: string
+        observes: read
+
+  writefile:
+    args:
+      - type: string
+        observes: read
+      - type: string
+        observes: write
+
+  # Instances
+  cloneref:
+    args:
+      - type: any
+
+  compareinstances:
+    args:
+      - type: any
+      - type: any
+    must_use: true
+
+  fireclickdetector:
+    args:
+      - type: any
+      - type: number
+        required: false
+      - type: string
+        required: false
+
+  fireproximityprompt:
+    args:
+      - type: any
+
+  firetouchinterest:
+    args:
+      - type: any
+      - type: any
+      - type: bool
+
+  getcallbackvalue:
+    args:
+      - type: any
+      - type: string
+
+  gethui:
+    args: []
+
+  getinstances:
+    args: []
+
+  getnilinstances:
+    args: []
+
+  # Metatable
+  getnamecallmethod:
+    args: []
+
+  getrawmetatable:
+    args:
+      - type: any
+
+  isreadonly:
+    args:
+      - type: any
+    must_use: true
+
+  setrawmetatable:
+    args:
+      - type: any
+      - type: table
+
+  setreadonly:
+    args:
+      - type: any
+      - type: bool
+
+  # Miscellaneous
+  identifyexecutor:
+    args: []
+
+  request:
+    args:
+      - type: table
+
+  # Reflection
+  gethiddenproperty:
+    args:
+      - type: any
+      - type: string
+
+  getthreadidentity:
+    args: []
+
+  isscriptable:
+    args:
+      - type: any
+      - type: string
+    must_use: true
+
+  sethiddenproperty:
+    args:
+      - type: any
+      - type: string
+      - type: any
+
+  setscriptable:
+    args:
+      - type: any
+      - type: string
+      - type: bool
+
+  setthreadidentity:
+    args:
+      - type: number
+
+  # Scripts
+  getcallingscript:
+    args: []
+
+  getloadedmodules:
+    args: []
+
+  getrunningscripts:
+    args: []
+
+  getscriptbytecode:
+    args:
+      - type: any
+
+  getscriptclosure:
+    args:
+      - type: any
+
+  getscriptfromthread:
+    args:
+      - type: any
+
+  getscripthash:
+    args:
+      - type: any
+
+  getscripts:
+    args: []
+
+  getsenv:
+    args:
+      - type: any
+
+  # Signals
+  firesignal:
+    args:
+      - type: any
+      - type: "..."
+
+  getconnections:
+    args:
+      - type: any
+
+  replicatesignal:
+    args:
+      - type: any
+      - type: "..."
+
+  # WebSocket
+  WebSocket.connect:
+    args:
+      - type: string
+
+  # Custom / Missing from Roblox
+  ypcall:
+    args:
+      - type: function
