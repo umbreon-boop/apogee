@@ -31,9 +31,9 @@ local Args = require("../../services/args")
 	.SubTitle string? -- Secondary title in the title bar.
 	.Icon string? -- An icon name or asset id displayed in the title bar
 	.Size UDim2? -- Preferred offset dimensions; clamped to viewport bounds. Defaults to two thirds of the viewport.
-	Position UDim2? -- Initial screen position; defaults to centered and is corrected to remain on screen.
-	TabWidth number? -- Preferred sidebar width; constrained by available content width.
-	Theme string? -- Theme to activate before constructing this window.
+	.Position UDim2? -- Initial screen position; defaults to centered and is corrected to remain on screen.
+	.TabWidth number? -- Preferred sidebar width; constrained by available content width.
+	.Theme string? -- Theme to activate before constructing this window.
 	.Minimizer (Minimizer.Config | false)? -- Settings for the floating toggle button, false disables it
 	.CloseCallback (() -> ())? -- Runs after the close animation and before the window is destroyed.
 	@within Window
@@ -47,8 +47,8 @@ export type Config = {
 --[=[
 	@interface DialogConfig
 	.Title string -- Dialog heading.
-	Content string -- Body text; long content is placed in a scrollable region.
-	Buttons { DialogButton } -- Buttons appear in supplied order. Each callback runs before dismissal; returning false keeps the dialog open.
+	.Content string -- Body text; long content is placed in a scrollable region.
+	.Buttons { DialogButton } -- Buttons appear in supplied order. Each callback runs before dismissal; returning false keeps the dialog open.
 	@within Window
 ]=]
 --[=[
