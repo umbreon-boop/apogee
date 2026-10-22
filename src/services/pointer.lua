@@ -88,9 +88,11 @@ export type States = {
 	@return () -> () -- Disconnects the button
 ]=]
 function Pointer.Hover(button: GuiButton, set: (number, boolean?) -> (), states: States): () -> ()
+	--@inline
 	local function value(state: number | () -> number): number
 		return if type(state) == "function" then state() else state
 	end
+	--@inline
 	local function blocked(): boolean
 		return states.Blocked ~= nil and states.Blocked()
 	end

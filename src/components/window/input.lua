@@ -66,7 +66,6 @@ function WindowInput.Connect(self: any, fit: (Vector2) -> Vector2)
 	end
 	local EDGE_THRESHOLD = 14
 	local DRAG_SLIP_THRESHOLD = 4
-
 	local function getEdge(pos: Vector2): {X: number, Y: number}?
 		local rootPos = self.Root.AbsolutePosition
 		local rootSize = self.Root.AbsoluteSize
@@ -97,7 +96,6 @@ function WindowInput.Connect(self: any, fit: (Vector2) -> Vector2)
 		end
 		return nil
 	end
-
 	local function tryStartResize(input: InputObject): boolean
 		if not isPress(input) or self.Maximized or Drag._active or resizing or splitterDragging or self:_transitioning() or State:HasOverlay() then
 			return false
@@ -254,7 +252,11 @@ function WindowInput.Connect(self: any, fit: (Vector2) -> Vector2)
 		end, self.Root)
 
 	self._tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		self.TabHolder.CanvasSize = UDim2.fromOffset(0, Measure.Offset(self.TabHolder, self._tabLayout.AbsoluteContentSize.Y))
+		if self._horizontalTabs then
+			self:_updateTabSection(self.Root.Size.X.Offset)
+		else
+			self.TabHolder.CanvasSize = UDim2.fromOffset(0, Measure.Offset(self.TabHolder, self._tabLayout.AbsoluteContentSize.Y))
+		end
 	end)
 end
 

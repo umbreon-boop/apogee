@@ -22,7 +22,7 @@ local Measure = require("../services/measure")
 	.Surface ImageLabel
 	.Border ImageLabel
 	.Background ImageLabel
-	.Group (self, first: boolean) -> ()
+	.Group (self, first: boolean, section: any?) -> ()
 	.SetTitle (self, title: string) -> ()
 	.SetDesc (self, description: string?) -> ()
 	.Destroy (self) -> ()
@@ -191,9 +191,11 @@ end
 	drawn above every row but the first.
 
 	@param first boolean -- Whether this is the section's first row
+	@param section any? -- The section that owns this row
 ]=]
-function Element:Group(first: boolean)
+function Element:Group(first: boolean, section: any?)
 	self._grouped = true
+	self._section = section
 	self.Surface.Visible = false
 	self.Border.Visible = false
 	if self._motor then
@@ -297,6 +299,10 @@ function Element:Destroy()
 		table.remove(elements, idx)
 	end
 	self.Frame:Destroy()
+	local section = rawget(self, "_section")
+	if section and section._updateSection then
+		section:_updateSection()
+	end
 end
 
 return Element

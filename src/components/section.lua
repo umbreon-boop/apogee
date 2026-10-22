@@ -66,12 +66,22 @@ function Section.New(config: { Title: string }, tab: any): any
 		LayoutOrder = 7,
 		Parent = tab.Container
 	}, {title, panel, self.Container}))
-
 	local function updateSection()
 		local contentHeight = Measure.Rows(self.Container)
 		self.Container.Size = UDim2.new(1, 0, 0, contentHeight)
 		panel.Size = self.Container.Size
 		self.Root.Size = UDim2.new(1, 0, 0, contentHeight + offset)
+		-- a removed first row must not leave a divider at the top of the section
+		local first = true
+		for _, child in self.Container:GetChildren() do
+			if child:IsA("GuiObject") and child.Visible ~= false then
+				local divider = child:FindFirstChild("Divider")
+				if divider then
+					divider.Visible = not first
+				end
+				first = false
+			end
+		end
 		if self._tab and self._tab._updateCanvas then
 			self._tab:_updateCanvas()
 		end

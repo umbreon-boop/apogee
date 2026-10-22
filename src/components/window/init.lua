@@ -22,12 +22,13 @@ local Input = require("./input")
 local Transitions = require("./transitions")
 local Creator = require("../../services/creator")
 local Resize = require("../../services/resize")
+local Theme = require("../../services/theme")
 local Maid = require("@aria/maid")
 local Args = require("../../services/args")
 
 --[=[
 	@interface WindowConfig
-	.Title string -- Required window title; also initializes the window's reactive `Title` property.
+	.Title string -- Required initial window title; use `SetTitle` to change it.
 	.SubTitle string? -- Secondary title in the title bar.
 	.Icon string? -- An icon name or asset id displayed in the title bar
 	.Size UDim2? -- Preferred offset dimensions; clamped to viewport bounds. Defaults to two thirds of the viewport.
@@ -47,7 +48,7 @@ export type Config = {
 --[=[
 	@interface DialogConfig
 	.Title string -- Dialog heading.
-	.Content string -- Body text; long content is placed in a scrollable region.
+	.Content string -- Body text; long content is clipped to the available card area.
 	.Buttons { DialogButton } -- Buttons appear in supplied order. Each callback runs before dismissal; returning false keeps the dialog open.
 	@within Window
 ]=]
@@ -85,15 +86,18 @@ local SPLITTER_WIDTH = if UserInputService.TouchEnabled then 36 else 20
 local MIN_SIZE = Vector2.new(430, 200)
 local MAX_SIZE = Vector2.new(2048, 2048)
 local SCREEN_MARGIN = 16
+local SECTION_TOP = 48
+-- the title line is 24 px high, followed by a small gap
+local CONTENT_TOP = SECTION_TOP + 24 + 2
 local TAB_OUT_DURATION = 0.1
 local TAB_IN_DURATION = 0.22
 local TAB_SHIFT = 8
 
 -- the center of the gap between the sidebar and the content
+--@inline
 local function splitterX(tabWidth: number): number
 	return Style.Space.XS + tabWidth + Style.Space.XS / 2
 end
-
 local function defaultViewportSize(): Vector2
 	local vp = camera.ViewportSize
 	return Vector2.new(math.floor(vp.X * 2 / 3), math.floor(vp.Y * 2 / 3))
@@ -107,7 +111,6 @@ local function fit(size: Vector2, contentMinimum: number?): Vector2
 	local minimum = Vector2.new(minimumWidth, MIN_SIZE.Y):Min(largest)
 	return size:Max(minimum):Min(largest)
 end
-
 local function minimumContentWidth(window: any): number
 	local required = Resize.RequiredWidth(window)
 	return math.max(MIN_CONTENT_WIDTH, if required > 0 then required + LAYOUT_CLEARANCE else 0)
@@ -140,6 +143,14 @@ function Window.New(config: Config, parent: Instance): any
 	local position = if config.Position
 		then config.Position
 	else UDim2.fromOffset(centeredX, centeredY)
+	if config.Position and config.Position.X.Scale == 0 and config.Position.Y.Scale == 0 then
+		local maxX = math.max(0, camera.ViewportSize.X - fitted.X)
+		local maxY = math.max(0, camera.ViewportSize.Y - fitted.Y)
+		position = UDim2.fromOffset(
+			math.clamp(position.X.Offset, 0, maxX),
+			math.clamp(position.Y.Offset, 0, maxY)
+		)
+	end
 
 	local self = setmetatable({
 		Minimized = false,
@@ -158,6 +169,8 @@ function Window.New(config: Config, parent: Instance): any
 		_elements = {},
 		_openFrames = {},
 		_dialogs = {},
+		_widgets = {},
+		_dropdowns = {},
 		_transitionId = 0,
 		Transparency = 0,
 		Title = config.Title,
@@ -166,6 +179,7 @@ function Window.New(config: Config, parent: Instance): any
 	self._window = self
 
 	self._tabLayout = tabLayout
+	self._horizontalTabs = false
 	self.TabHolder = Creator:New("ScrollingFrame", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
@@ -177,8 +191,8 @@ function Window.New(config: Config, parent: Instance): any
 	}, {self._tabLayout})
 
 	local tabFrame = Creator:New("Frame", {
-		Size = UDim2.new(0, initialTabWidth, 1, -58),
-		Position = UDim2.fromOffset(Style.Space.XS, 48),
+		Size = UDim2.new(0, initialTabWidth, 1, -(SECTION_TOP + Style.Space.XS)),
+		Position = UDim2.fromOffset(Style.Space.XS, SECTION_TOP),
 		BackgroundTransparency = 1,
 		ClipsDescendants = true
 	}, {self.TabHolder})
@@ -193,7 +207,7 @@ function Window.New(config: Config, parent: Instance): any
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Center,
 		Size = UDim2.new(1, -contentX - Style.Space.XS, 0, 24),
-		Position = UDim2.fromOffset(contentX, 48),
+		Position = UDim2.fromOffset(contentX, SECTION_TOP),
 		BackgroundTransparency = 1,
 		Themed = {TextColor3 = "Text"}
 	})
@@ -202,16 +216,16 @@ function Window.New(config: Config, parent: Instance): any
 	-- the content moves into this frame only while a tab switch animates it
 	self.ContainerAnim = Creator:New("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1})
 	self.ContainerCanvas = Creator:New("Frame", {
-		Size = UDim2.new(1, -contentX - Style.Space.XS, 1, -84),
-		Position = UDim2.fromOffset(contentX, 74),
+		Size = UDim2.new(1, -contentX - Style.Space.XS, 1, -CONTENT_TOP),
+		Position = UDim2.fromOffset(contentX, CONTENT_TOP),
 		BackgroundTransparency = 1
 	}, {self.ContainerAnim, self.ContainerHolder})
 
 	self.Splitter = Creator:New("TextButton", {
 		Name = "Splitter",
-		Size = UDim2.new(0, SPLITTER_WIDTH, 1, -58),
+		Size = UDim2.new(0, SPLITTER_WIDTH, 1, -(SECTION_TOP + Style.Space.XS)),
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.fromOffset(splitterX(initialTabWidth), 48),
+		Position = UDim2.fromOffset(splitterX(initialTabWidth), SECTION_TOP),
 		BackgroundTransparency = 1,
 		Text = "",
 		AutoButtonColor = false,
@@ -223,6 +237,7 @@ function Window.New(config: Config, parent: Instance): any
 	self._rootScale = Creator:New("UIScale", {Scale = 1})
 	self.Root = Creator:New("Frame", {
 		BackgroundTransparency = 1,
+		Active = true,
 		Size = self.Size,
 		Position = self.Position,
 		Parent = parent
@@ -247,12 +262,32 @@ function Window.New(config: Config, parent: Instance): any
 	Input.Connect(self, function(proposedSize)
 		return self:_fitResize(proposedSize)
 	end)
+	-- a palette can change the tab height or the content inset while tabs already exist
+	Theme:Track(function()
+		self:_updateTabSection(self.Root.Size.X.Offset)
+	end, self.Root)
+	--@inline
+	local function setTabAxis(axis: string)
+		assert(axis == "X" or axis == "Y", "Window:SetTabAxis - Axis must be X or Y")
+		local horizontal = axis == "X"
+		if self.Splitter then
+			self.Splitter.Visible = not horizontal
+		end
+		if self._horizontalTabs ~= horizontal then
+			self._horizontalTabs = horizontal
+			tabLayout.FillDirection = if horizontal then Enum.FillDirection.Horizontal else Enum.FillDirection.Vertical
+			self.TabHolder.ScrollingDirection = if horizontal then Enum.ScrollingDirection.X else Enum.ScrollingDirection.Y
+			self:_updateMinimumWidth()
+		end
+	end
+	self.SetTabAxis = function(_window: any, axis: string)
+		setTabAxis(axis)
+	end
 	table.insert(windows, self)
 	State.Current = self
 	State:RegisterHost(self)
 	return self
 end
-
 local function applyTransparency(parent: Instance, value: number)
 	for _, child in parent:GetChildren() do
 		if child:IsA("ImageLabel") and (child.Name == "Surface" or child.Name == "Icon") then
@@ -287,6 +322,7 @@ function Window:SetTransparency(value: number)
 end
 
 -- the widest sidebar that still leaves the content its minimum width
+--@inline
 local function widestTab(width: number, contentMinimum: number): number
 	return math.clamp(width - contentMinimum - 3 * Style.Space.XS, MIN_TAB_WIDTH, MAX_TAB_WIDTH)
 end
@@ -295,6 +331,37 @@ end
 -- The layout never changes the preferred width, so a small window or an animation cannot shrink the sidebar for good.
 function Window:_updateTabSection(width: number)
 	local contentMinimum = minimumContentWidth(self)
+	if self._horizontalTabs then
+		local tabHeight = Theme:Size("Tab")
+		local stripWidth = math.max(0, width - 2 * Style.Space.XS)
+		-- Size the strip before measuring labels: Measure.Text can yield while a font loads, and the tabs must not
+		-- stay inside the old sidebar width during that time.
+		self._tabFrame.Position = UDim2.fromOffset(Style.Space.XS, SECTION_TOP)
+		self._tabFrame.Size = UDim2.fromOffset(stripWidth, tabHeight)
+		self.TabHolder.Size = UDim2.fromOffset(stripWidth, tabHeight)
+		self.TabDisplay.Position = UDim2.fromOffset(Style.Space.XS, SECTION_TOP + tabHeight + Style.Space.XS)
+		self.TabDisplay.Size = UDim2.fromOffset(stripWidth, 24)
+		self.ContainerCanvas.Position = UDim2.fromOffset(Style.Space.XS, SECTION_TOP + tabHeight + 40)
+		self.ContainerCanvas.Size = UDim2.new(1, -2 * Style.Space.XS, 1, -(SECTION_TOP + tabHeight + 50))
+		self.Splitter.Visible = false
+		local tabGap = Style.Space.XXXS
+		local tabTotal = 0
+		for _, tab in self.Tabs do
+			local tabWidth = tab._preferredTabWidth and tab._preferredTabWidth() or MIN_TAB_WIDTH
+			tab.Frame.Size = UDim2.fromOffset(tabWidth, tabHeight)
+			tabTotal += tabWidth + tabGap
+			local update = rawget(tab, "_updateTabLayout")
+			if update then
+				update(tabWidth, true)
+			end
+		end
+		tabTotal = math.max(0, tabTotal - tabGap)
+		self.TabHolder.CanvasSize = UDim2.fromOffset(tabTotal, tabHeight)
+		return
+	end
+	if self.Splitter then
+		self.Splitter.Visible = true
+	end
 	local tabWidth = math.clamp(self._tabWidth, MIN_TAB_WIDTH, widestTab(width, contentMinimum))
 	self.TabWidth = tabWidth
 
@@ -303,24 +370,28 @@ function Window:_updateTabSection(width: number)
 	local contentWidth = math.max(contentMinimum, availableContentWidth)
 
 	if self._tabFrame then
-		self._tabFrame.Size = UDim2.new(0, tabWidth, 1, -58)
+		self._tabFrame.Size = UDim2.new(0, tabWidth, 1, -(SECTION_TOP + Style.Space.XS))
+	end
+	if self.TabHolder then
+		self.TabHolder.Size = UDim2.fromScale(1, 1)
 	end
 	if self.Splitter then
-		self.Splitter.Position = UDim2.fromOffset(splitterX(tabWidth), 48)
+		self.Splitter.Position = UDim2.fromOffset(splitterX(tabWidth), SECTION_TOP)
 	end
 	for _, tab in self.Tabs do
+		tab.Frame.Size = UDim2.new(1, 0, 0, Theme:Size("Tab"))
 		local updateTabLayout = rawget(tab, "_updateTabLayout")
 		if updateTabLayout then
 			updateTabLayout(tabWidth)
 		end
 	end
 	if self.TabDisplay then
-		self.TabDisplay.Position = UDim2.fromOffset(contentX, 48)
+		self.TabDisplay.Position = UDim2.fromOffset(contentX, SECTION_TOP)
 		self.TabDisplay.Size = UDim2.fromOffset(contentWidth, 24)
 	end
 	if self.ContainerCanvas then
-		self.ContainerCanvas.Position = UDim2.fromOffset(contentX, 74)
-		self.ContainerCanvas.Size = UDim2.new(0, contentWidth, 1, -84)
+		self.ContainerCanvas.Position = UDim2.fromOffset(contentX, CONTENT_TOP)
+		self.ContainerCanvas.Size = UDim2.new(0, contentWidth, 1, -CONTENT_TOP)
 	end
 end
 
@@ -331,7 +402,16 @@ function Window:_updateMinimumWidth()
 	local screenWidth = math.max(0, camera.ViewportSize.X - 2 * SCREEN_MARGIN)
 	width = math.min(width, screenWidth, MAX_SIZE.X)
 	Resize.Apply(self.Root, width)
-	self:_updateTabSection(self.Root.Size.X.Offset)
+
+	-- A new layout can require more room than the window currently has. Grow the logical
+	-- size too, otherwise the content keeps the old width while the constraint widens the root.
+	if not self.Maximized and self.Root.Size.X.Offset < width then
+		local size = self:_fitResize(Vector2.new(width, self.Root.Size.Y.Offset))
+		self.Size = UDim2.fromOffset(size.X, size.Y)
+		self:_place(size, Vector2.new(self.Position.X.Offset, self.Position.Y.Offset))
+	else
+		self:_updateTabSection(self.Root.Size.X.Offset)
+	end
 end
 
 --[=[
@@ -400,10 +480,20 @@ function Window:Destroy()
 	end
 	State:UnregisterHost(self)
 	State:DestroyPopups(self)
+	State:DestroyDropdowns(self)
+	for _, widget in table.clone(self._widgets or {}) do
+		pcall(widget.Destroy, widget)
+	end
+	table.clear(self._widgets or {})
+	table.clear(self._elements or {})
 	State:Orphan(self)
 	self.Root.Visible = false
+	if self.Minimizer then
+		self.Minimizer:Destroy()
+		self.Minimizer = nil
+	end
 	local cleanup = Maid.new()
-	cleanup:Task(if self.Minimizer then {self.Root, self.Minimizer.Frame} else self.Root)
+	cleanup:Task(self.Root)
 	cleanup:DeferredClean(0.01)
 end
 
@@ -438,14 +528,14 @@ end
 ]=]
 function Window:Popup(config: any, ...: any): any
 	config = Args.Config({"Title", "Size"}, nil, config, ...)
-	local popup = Popup.New(config, self.Root, self)
+	local popup = Popup.New(config, config.Parent or self.Root, self)
 	State:Adopt(self, popup)
 	return popup
 end
 
 --[=[
 	Creates the built-in settings tab, containing theme, persistence, and minimize controls.
-	Calling this more than once creates another settings tab.
+	Calling this more than once returns the existing settings tab.
 
 	@param config { Title: string?, Icon: string? }? -- Optional settings tab label and icon
 	@return [Tab](Tab.md) -- The settings tab
@@ -466,7 +556,11 @@ end
 function Window:Tab(config: any, ...: any): any
 	config = Args.Config({"Title", "Icon"}, nil, config, ...)
 	local tab = Tab.New(config, self)
+	tab.Frame.LayoutOrder = #self.Tabs + 1
 	table.insert(self.Tabs, tab)
+	if self._horizontalTabs then
+		self:_updateTabSection(self.Root.Size.X.Offset)
+	end
 	return tab
 end
 
@@ -478,7 +572,10 @@ end
 ]=]
 function Window:SelectTab(target: any)
 	local tab = if type(target) == "number" then self.Tabs[target] else target
-	if not tab then
+	if not tab or not table.find(self.Tabs, tab) then
+		return
+	end
+	if self._selected == tab then
 		return
 	end
 
@@ -506,7 +603,7 @@ function Window:SelectTab(target: any)
 			self._transit = leaving
 		end
 	end
-
+	--@inline
 	local function arrive()
 		local container = tab.Container
 		container.Visible = true

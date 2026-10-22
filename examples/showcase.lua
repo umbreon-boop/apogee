@@ -219,6 +219,9 @@ end)
 
 -- Layouts divide a section into equal subcontainers; each subcontainer hosts the usual primitives and can nest again.
 local layoutSection = main:Section("Layout")
+main:Toggle("Horizontal tabs", false, function(enabled)
+	window:SetTabAxis(if enabled then "X" else "Y")
+end)
 local columns = layoutSection:Layout({Axis = "X", Gap = 8})
 local leftColumn = columns:Subcontainer()
 local rightColumn = columns:Subcontainer()

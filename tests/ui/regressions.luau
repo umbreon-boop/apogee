@@ -21,6 +21,11 @@ return function(t)
 		local regTab = win:Tab("Regressions")
 		local regToast = Apogee:Notify({Title = "Default duration", Content = "closes by itself"})
 		local toastStarted = os.clock()
+		local closeIcon = regToast.CloseButton:GetChildren()[2]
+		check(regToast.CloseButton.AnchorPoint == roblox.Vector2.new(0.5, 0.5)
+			and regToast.CloseButton.Size.X.Offset >= 32 and regToast.CloseButton.Size.Y.Offset >= 32
+			and closeIcon.Position.X.Scale == 0.5 and closeIcon.Position.Y.Scale == 0.5,
+			"notification close control sits in the top-right with a mobile-sized hit area")
 
 		local function visibleGroups(instance, shown)
 			local count = 0

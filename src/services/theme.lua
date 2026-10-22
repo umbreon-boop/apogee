@@ -16,10 +16,11 @@ local Theme = {
 	_registry = {},
 	_motors = {}
 }
-
+--@inline
 local function readable(theme: any, key: string): Color3
 	local fill = theme:Get(key)
 	-- relative luminance, so mid tones like the indigo accent pick the right side
+	--@inline
 	local function channel(value: number): number
 		return if value <= 0.04045 then value / 12.92 else ((value + 0.055) / 1.055) ^ 2.4
 	end
@@ -44,12 +45,13 @@ local DERIVED = {
 		)
 	end
 }
-
+--@inline
 local function isText(instance: Instance): boolean
 	return instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox")
 end
 
 -- a theme picks the font family only, so bold and italic text keeps its weight and style across theme changes
+--@inline
 local function applyFont(instance: any, family: string)
 	local face = instance.FontFace
 	instance.FontFace = if face then Font.new(family, face.Weight, face.Style) else Font.new(family)
@@ -169,7 +171,7 @@ function Theme:GetComponent(name: string): Style
 	local custom = palette and palette.Components and palette.Components[name]
 	return custom or self._components[name]
 end
-
+--@inline
 local function undress(entry: any)
 	if entry.look and entry.look.Destroy then
 		entry.look.Destroy()

@@ -10,7 +10,7 @@ local Config = require("../../services/config")
 local Theme = require("../../services/theme")
 
 local Settings = {}
-
+--@inline
 local function notify(message: string, window: any?)
 	State:Notify({Title = "Interface", Content = "Config loader", SubContent = message, Duration = 7, _window = window})
 end
@@ -69,7 +69,8 @@ function Settings.Interface(tab: any): any
 		Title = "Minimize Bind",
 		Value = minimizeKey,
 		Pressed = function()
-			if not window._destroyed then
+			-- Several windows can have a Settings tab; only the active window owns the key.
+			if not window._destroyed and State.Current == window then
 				window:Minimize()
 			end
 		end
@@ -90,16 +91,14 @@ function Settings.Configs(tab: any): any
 	local name = section:Input({Title = "Config name"})
 	local list = section:Dropdown({Title = "Config list", Values = Config:List(), AllowNull = true})
 	local autoload
-
 	local function refresh()
 		list:SetValues(Config:List())
 		list:SetValue(nil)
 	end
-
+	--@inline
 	local function describeAutoload()
 		autoload:SetDesc("Autoload config: " .. (if Config:HasAutoload() then "set" else "none"))
 	end
-
 	local function run(verb: string, past: string, target: string?, result: boolean, err: string?): boolean
 		if result then
 			notify(string.format("%s config %q", past, target), window)

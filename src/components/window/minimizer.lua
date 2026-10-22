@@ -22,13 +22,11 @@ local Theme = require("../../services/theme")
 local Pointer = require("../../services/pointer")
 
 local isPress = Pointer.IsPress
-
 --@inline
 local function getInsets(parent: Instance?): (Vector2, Vector2)
 	local topLeftInset, bottomRightInset = GuiService:GetGuiInset()
-	if parent and parent:IsA("ScreenGui") and parent.IgnoreGuiInset then
-		return Vector2.zero, Vector2.zero
-	end
+	topLeftInset = if parent and parent:IsA("ScreenGui") and parent.IgnoreGuiInset then Vector2.zero else topLeftInset
+	bottomRightInset = if parent and parent:IsA("ScreenGui") and parent.IgnoreGuiInset then Vector2.zero else bottomRightInset
 	return topLeftInset, bottomRightInset
 end
 
@@ -240,6 +238,13 @@ function Minimizer:_connect()
 			origin = nil
 		end
 	end, button)
+
+	-- a destroyed button never receives InputEnded, so release the shared drag lock here
+	button.Destroying:Connect(function()
+		if Drag._active == self then
+			Drag._active = nil
+		end
+	end)
 end
 
 function Minimizer:_moveTo(target: Vector2)
@@ -259,6 +264,9 @@ end
 	Destroys the button.
 ]=]
 function Minimizer:Destroy()
+	if Drag._active == self then
+		Drag._active = nil
+	end
 	self.Frame:Destroy()
 end
 

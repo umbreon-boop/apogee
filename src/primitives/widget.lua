@@ -26,6 +26,10 @@ local Widget = Class.Extend({})
 function Widget:_bind(element: any)
 	self._element = element
 	self._window = element._window
+	if self._window then
+		self._window._widgets = self._window._widgets or {}
+		table.insert(self._window._widgets, self)
+	end
 	rawset(self, "Frame", element.Frame)
 	Class.Define(self, {
 		Title = function(_, value: string)
@@ -111,7 +115,7 @@ end
 ]=]
 function Widget:OnChanged(handler: (value: any) -> ())
 	self._changed = handler
-	handler(self.Value)
+	State:SafeCallback(handler, self.Value)
 end
 
 --[=[
@@ -120,10 +124,19 @@ end
 ]=]
 function Widget:Destroy()
 	self._element:Destroy()
-	if self._window and self._window._openFrames then
-		self._window._openFrames[self] = nil
+	local window = rawget(self, "_window")
+	if window then
+		if window._openFrames then
+			window._openFrames[self] = nil
+		end
+		for _, list in {window._widgets, window._dropdowns} do
+			local index = list and table.find(list, self)
+			if index then
+				table.remove(list, index)
+			end
+		end
 	end
-	if rawget(self, "_name") then
+	if rawget(self, "_name") and Config.Widgets[self._name] == self then
 		Config.Widgets[self._name] = nil
 	end
 end

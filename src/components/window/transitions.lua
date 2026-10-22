@@ -28,6 +28,7 @@ function Transitions:_transitioning(): boolean
 end
 
 -- a maximized window fills the screen, so it shows no shadow and no title bar divider
+--@inline
 local function updateDecorations(window: any)
 	window._shadow.Visible = not window.Maximized
 	local divider = window.TitleBar and window.TitleBar.Frame:FindFirstChild("Divider")
@@ -79,6 +80,7 @@ end
 
 -- Fades the window content together with its shadow. The shadow fades on its own, because it rests at its own
 -- transparency, not at 0.
+--@inline
 local function fade(window: any, visible: boolean, duration: number, completed: (() -> ())?)
 	Fade.To(window.Root, visible, duration, completed, function(child)
 		return child == window._shadow
@@ -87,6 +89,7 @@ local function fade(window: any, visible: boolean, duration: number, completed: 
 end
 
 -- ends a fade at once, fully visible
+--@inline
 local function unwrap(window: any)
 	Fade.Settle(window.Root)
 	window._shadow.ImageTransparency = window._shadowRest
@@ -103,6 +106,7 @@ function Transitions:Maximize(value: boolean, keepPosition: boolean?, instant: b
 	if self._destroyed or self._closing or (value == self.Maximized and not instant) then
 		return
 	end
+	State:CloseDropdowns(self, true)
 	self.Maximized = value
 	self.TitleBar:SetMaximized(value)
 	updateDecorations(self)
@@ -152,6 +156,7 @@ function Transitions:Minimize()
 	if self._destroyed or self._closing then
 		return
 	end
+	State:CloseDropdowns(self, true)
 	self.Minimized = not self.Minimized
 	local transitionId = Transitions._cancel(self)
 	local hidden = not self.Root.Visible
@@ -205,6 +210,7 @@ function Transitions:Close()
 		return
 	end
 	self._closing = true
+	State:CloseDropdowns(self, true)
 	local transitionId = Transitions._cancel(self)
 	-- the same motion as a dialog: the window fades and slides down a little
 	fade(self, false, CLOSE_DURATION)

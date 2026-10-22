@@ -49,9 +49,13 @@ function ColorPicker.New(config: Config, parent: any): any
 
 	local owningWindow = parent._window
 	local scroll = parent.ScrollFrame or (if parent.Container and parent.Container:IsA("ScrollingFrame") then parent.Container else nil)
+	local alpha = config.Transparency ~= nil
+	if type(config) == "table" and rawget(config, "_alpha") ~= nil then
+		alpha = rawget(config, "_alpha") == true
+	end
 	local self = Class.New(ColorPicker, {
 		Opened = false,
-		_alpha = config.Transparency ~= nil,
+		_alpha = alpha,
 		_window = owningWindow
 	})
 	local element = Element.New(config.Title, config.Description, parent.Container, true, parent._window)
@@ -143,7 +147,7 @@ end
 ]=]
 function ColorPicker:_setHSV(hue: number, saturation: number, value: number, transparency: number?)
 	self:_store(hue, saturation, value, transparency)
-	self:_fire(self.Value, self.Transparency)
+	self:_fire(self.Value, if self._alpha then self.Transparency else nil)
 end
 
 --[=[
@@ -174,9 +178,9 @@ end
 
 	@param handler (value: Color3, transparency: number) -> () -- The handler
 ]=]
-function ColorPicker:OnChanged(handler: (value: Color3, transparency: number) -> ())
+function ColorPicker:OnChanged(handler: (value: Color3, transparency: number?) -> ())
 	self._changed = handler
-	handler(self.Value, self.Transparency)
+	handler(self.Value, if self._alpha then self.Transparency else nil)
 end
 
 function ColorPicker:Destroy()

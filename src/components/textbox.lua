@@ -81,7 +81,6 @@ function Textbox.New(parent: Instance?, element: boolean?): Textbox
 		self.Indicator,
 		self.Container
 	})
-
 	local function update()
 		self:_update()
 	end

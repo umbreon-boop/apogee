@@ -14,14 +14,12 @@ local Drag = {}
 Drag._active = nil
 
 local isPress = Pointer.IsPress
-
 --@inline
 local function follows(active: InputObject, input: InputObject): boolean
 	return if active.UserInputType == Enum.UserInputType.Touch
 		then input == active
 	else input.UserInputType == Enum.UserInputType.MouseMovement
 end
-
 --@inline
 local function releases(active: InputObject, input: InputObject): boolean
 	return if active.UserInputType == Enum.UserInputType.Touch
@@ -48,7 +46,7 @@ function Drag.Bind(
 	): () -> ()
 	local active: InputObject? = nil
 	target.Active = true
-
+	--@inline
 	local function stop()
 		if Drag._active == target then
 			Drag._active = nil
@@ -98,7 +96,6 @@ function Drag.Bind(
 			stop()
 		end
 	end)
-
 	local function dispose()
 		began:Disconnect()
 		changed:Disconnect()

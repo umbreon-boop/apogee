@@ -45,7 +45,9 @@ function Layout.New(config: Config, parent: any): any
 		_naturalHeight = 0,
 		_refreshing = false,
 		_parentContainer = parent,
-		_window = parent._window
+		_window = parent._window,
+		-- nested layouts keep the scrolling frame of their tab or section
+		ScrollFrame = parent.ScrollFrame
 	})
 	self._rootLayout = if parent.Type == "Layout" then parent._rootLayout else self
 	local layout = Creator:New("UIListLayout", {
@@ -101,6 +103,7 @@ function Layout.New(config: Config, parent: any): any
 		local height = 0
 		local minimumWidth = widestMinimum
 		if axis == "X" then
+			-- X columns share their width equally, so every column must fit the widest minimum.
 			minimumWidth = visible * widestMinimum + math.max(visible - 1, 0) * spacing
 			for _, item in self._items do
 				if item.Type == "Layout" and item.Frame.Parent == self.Frame then

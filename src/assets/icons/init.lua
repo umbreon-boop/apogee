@@ -15,7 +15,7 @@ local Icons = {
 		gravity = require("./gravity")
 	},
 }
-
+--@inline
 local function split(name: string, kind: string?): (string, string)
 	local prefix, icon = string.match(name, "^([^:]+):(.+)$")
 	return prefix or kind or Icons.DefaultType, icon or name

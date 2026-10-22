@@ -24,6 +24,7 @@ local PRESSED = 0.8
 
 -- The label width comes from `Measure.Text`. Automatic sizing follows the rendered text, which changes under the
 -- scale animations of the window, and the title then moves when the animation ends.
+--@inline
 local function title(text: string?, transparency: number, key: string, size: number): TextLabel
 	local label = Creator:New("TextLabel", {
 		RichText = true,
@@ -110,6 +111,7 @@ function TitleBar.ButtonLook(button: TextButton, window: any, icon: string, high
 end
 
 -- a stable button that keeps its click across theme changes, the active `TitleBarButton` look draws it
+--@inline
 local function button(icon: string, position: UDim2, parent: Instance, window: any, callback: () -> (), highlight: string?, text: string): TextButton
 	local frame = Creator:New("TextButton", {
 		AnchorPoint = Vector2.new(1, 0.5),
@@ -155,9 +157,11 @@ function TitleBar.New(window: any, config: { Title: string, SubTitle: string?, I
 
 	self.Frame = Creator:New("Frame", {Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 1, Parent = window.Root}, {
 		Creator:New("Frame", {
-			Size = UDim2.new(1, -2 * Style.Space.S, 1, 0),
+			-- leave the three title-bar buttons their own space; clip a long title instead of drawing under them
+			Size = UDim2.new(1, -2 * Style.Space.S - 3 * BUTTON_SIZE, 1, 0),
 			Position = UDim2.fromOffset(Style.Space.S, 0),
-			BackgroundTransparency = 1
+			BackgroundTransparency = 1,
+			ClipsDescendants = true
 		}, children),
 		Creator:New("Frame", {
 			Name = "Divider",

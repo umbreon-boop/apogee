@@ -138,10 +138,14 @@ end
 function Dropdown.New(config: Config, parent: any): any
 	assert(config.Title, "Dropdown - Missing Title")
 	assert(config.Values, "Dropdown - Missing Values")
+	local allowNull = config.AllowNull
+	if type(config) == "table" and allowNull == nil then
+		allowNull = rawget(config, "_allowNull")
+	end
 	local self = Class.New(Dropdown, {
 		Multi = config.Multi or false,
 		Opened = false,
-		_allowNull = config.AllowNull,
+		_allowNull = allowNull,
 		_options = {},
 		_scrollFrame = parent.ScrollFrame
 	})
@@ -264,9 +268,14 @@ function Dropdown.New(config: Config, parent: any): any
 	self._barrier = barrier
 
 	self:_bind(element)
+	if self._window then
+		self._window._dropdowns = self._window._dropdowns or {}
+		table.insert(self._window._dropdowns, self)
+	end
 	Class.Define(self, {
 		Value = Dropdown._apply,
 		Values = function(dropdown)
+			dropdown:_reconcile()
 			dropdown:_build()
 		end
 	})
@@ -346,6 +355,37 @@ function Dropdown:_resolve(value: any): any
 	return selected
 end
 
+-- Keeps the selection inside a replaced Values list. A single selection falls back to
+-- the first option unless clearing is allowed; a multi selection drops removed labels.
+function Dropdown:_reconcile()
+	local values = self.Values or {}
+	local current = rawget(self._storage, "Value")
+	local changed = false
+
+	if self.Multi then
+		local selected = {}
+		for name, isSelected in current or {} do
+			if isSelected and table.find(values, name) then
+				selected[name] = true
+			else
+				changed = true
+			end
+		end
+		if changed then
+			self._storage.Value = selected
+			self._last = selected
+		end
+	elseif current ~= nil and not table.find(values, current) then
+		self._storage.Value = if self._allowNull or #values == 0 then nil else values[1]
+		self._last = self._storage.Value
+		changed = true
+	end
+
+	if changed then
+		self:_fire(self.Value)
+	end
+end
+
 function Dropdown:_position()
 	local inner, canvas = self._inner, self._canvas
 	local offset = 0
@@ -381,6 +421,26 @@ function Dropdown:_build()
 end
 
 function Dropdown:_rows()
+	-- Values can be a live table (the Settings theme list, for example). Notice labels
+	-- added or removed through that table even when the property itself was not assigned.
+	local values = self.Values or {}
+	local snapshot = self._valuesSnapshot
+	if snapshot then
+		local changed = #snapshot ~= #values
+		if not changed then
+			for index, value in values do
+				if snapshot[index] ~= value then
+					changed = true
+					break
+				end
+			end
+		end
+		if changed then
+			self._stale = true
+		end
+	end
+	self._valuesSnapshot = table.clone(values)
+
 	if not self._stale then
 		return
 	end
@@ -460,24 +520,43 @@ function Dropdown:Open()
 		self._shift.Value = SHIFT
 	end
 	self:_position()
-	self._scrollFrame.ScrollingEnabled = false
+	if self._scrollFrame then
+		self._scrollFrame.ScrollingEnabled = false
+	end
 	self._barrier.Visible = true
 	self._canvas.Visible = true
 	-- the list fades in and slides up a little to the field
+	if self._shiftTween then
+		self._shiftTween:Cancel()
+	end
 	Fade.To(self._canvas, true, TRANSITION_DURATION)
-	Motion.Tween(self._shift, {Value = 0}, TRANSITION_DURATION, TRANSITION_EASING, TRANSITION_DIRECTION)
+	self._shiftTween = Motion.Tween(self._shift, {Value = 0}, TRANSITION_DURATION, TRANSITION_EASING, TRANSITION_DIRECTION)
 end
 
 --[=[
 	Closes the option list.
+	@param instant boolean? -- Skip the fade and slide
 ]=]
-function Dropdown:Close()
+function Dropdown:Close(instant: boolean?)
 	if not self.Opened then
 		return
 	end
 	rawset(self, "Opened", false)
-	self._scrollFrame.ScrollingEnabled = true
-	Motion.Tween(self._shift, {Value = SHIFT}, TRANSITION_DURATION, TRANSITION_EASING, TRANSITION_DIRECTION)
+	if self._scrollFrame then
+		self._scrollFrame.ScrollingEnabled = true
+	end
+	if self._shiftTween then
+		self._shiftTween:Cancel()
+		self._shiftTween = nil
+	end
+	if instant then
+		self._shift.Value = SHIFT
+		self._canvas.Visible = false
+		self._barrier.Visible = false
+		Fade.Settle(self._canvas)
+		return
+	end
+	self._shiftTween = Motion.Tween(self._shift, {Value = SHIFT}, TRANSITION_DURATION, TRANSITION_EASING, TRANSITION_DIRECTION)
 	Fade.To(self._canvas, false, TRANSITION_DURATION, function()
 		if not self.Opened then
 			self._canvas.Visible = false
@@ -529,6 +608,7 @@ function Dropdown:SetValues(values: { string }?)
 	if values then
 		self._storage.Values = values
 	end
+	self:_reconcile()
 	self:_build()
 end
 
@@ -544,7 +624,12 @@ end
 	Destroys the dropdown and its floating list.
 ]=]
 function Dropdown:Destroy()
+	if self._shiftTween then
+		self._shiftTween:Cancel()
+		self._shiftTween = nil
+	end
 	Widget.Destroy(self)
+	self._shift:Destroy()
 	self._barrier:Destroy()
 	self._canvas:Destroy()
 end

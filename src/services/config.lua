@@ -26,15 +26,29 @@ function Config:SetFolder(folder: string)
 end
 
 local AUTOLOAD = "autoload"
-
+--@inline
 local function path(self, name: string): string
 	return self.Path .. "/" .. name .. ".bin"
+end
+
+-- Config names become file names, so a separator or parent segment would escape the folder.
+local function invalidName(name: string?): boolean
+	return type(name) ~= "string"
+		or string.find(name, "[/\\]") ~= nil
+		or string.find(name, "%.%.") ~= nil
+		or name == "."
+		or name == ".."
 end
 
 -- reads the file every time: the aria Cache memory copy would still return a config that was deleted
 local function read(self, name: string): string?
 	local file = path(self, name)
-	return if isfile(file) then readfile(file) else nil
+	local exists, isFile = pcall(isfile, file)
+	if not exists or not isFile then
+		return nil
+	end
+	local ok, data = pcall(readfile, file)
+	return if ok then data else nil
 end
 
 --[=[
@@ -44,10 +58,12 @@ end
 	@return boolean, string? -- Whether it succeeded and the reason when it did not
 ]=]
 function Config:Save(name: string?): (boolean, string?)
-	if not name or string.gsub(name, "%s", "") == "" then
+	if type(name) ~= "string" or string.gsub(name, "%s", "") == "" then
 		return false, "no config name was given"
 	elseif name == AUTOLOAD then
 		return false, "the autoload name is reserved"
+	elseif invalidName(name) then
+		return false, "the config name contains an invalid path"
 	end
 
 	local values = {}
@@ -66,7 +82,10 @@ function Config:Save(name: string?): (boolean, string?)
 		return false, "failed to encode data"
 	end
 
-	Cache:To(encoded, name .. ".bin", self.Path)
+	local saved, err = pcall(Cache.To, Cache, encoded, name .. ".bin", self.Path)
+	if not saved then
+		return false, tostring(err)
+	end
 	return true
 end
 
@@ -77,8 +96,10 @@ end
 	@return boolean, string? -- Whether it succeeded and the reason when it did not
 ]=]
 function Config:Load(name: string?): (boolean, string?)
-	if not name then
+	if type(name) ~= "string" then
 		return false, "no config is selected"
+	elseif invalidName(name) then
+		return false, "the config name contains an invalid path"
 	end
 	local encoded = read(self, name)
 	if not encoded then
@@ -107,11 +128,18 @@ end
 	@return boolean, string? -- Whether it succeeded and the reason when it did not
 ]=]
 function Config:Delete(name: string?): (boolean, string?)
-	if not name or not isfile(path(self, name)) then
+	if not name or invalidName(name) then
+		return false, "the config does not exist"
+	end
+	local exists, isFile = pcall(isfile, path(self, name))
+	if not exists or not isFile then
 		return false, "the config does not exist"
 	end
 
-	delfile(path(self, name))
+	local removed = pcall(delfile, path(self, name))
+	if not removed then
+		return false, "the config could not be deleted"
+	end
 	return true
 end
 
@@ -122,11 +150,16 @@ end
 ]=]
 function Config:List(): { string }
 	local names = {}
-	if not isfolder(self.Path) then
+	local hasFolder, isFolder = pcall(isfolder, self.Path)
+	if not hasFolder or not isFolder then
 		return names
 	end
 
-	for _, file in listfiles(self.Path) do
+	local listed, files = pcall(listfiles, self.Path)
+	if not listed or type(files) ~= "table" then
+		return names
+	end
+	for _, file in files do
 		local name = string.match(file, "([^/\\]+)%.bin$")
 		if name and name ~= AUTOLOAD then
 			table.insert(names, name)
@@ -145,15 +178,24 @@ end
 function Config:SetAutoload(name: string?): (boolean, string?)
 	if not name then
 		if self:HasAutoload() then
-			delfile(path(self, AUTOLOAD))
+			local removed = pcall(delfile, path(self, AUTOLOAD))
+			if not removed then
+				return false, "the autoload config could not be removed"
+			end
 		end
 		return true
+	end
+	if invalidName(name) then
+		return false, "the config name contains an invalid path"
 	end
 	local encoded = read(self, name)
 	if not encoded then
 		return false, "the config does not exist"
 	end
-	Cache:To(encoded, AUTOLOAD .. ".bin", self.Path)
+	local saved, err = pcall(Cache.To, Cache, encoded, AUTOLOAD .. ".bin", self.Path)
+	if not saved then
+		return false, tostring(err)
+	end
 	return true
 end
 
@@ -163,7 +205,8 @@ end
 	@return boolean -- Whether an autoload configuration is set.
 ]=]
 function Config:HasAutoload(): boolean
-	return isfile(path(self, AUTOLOAD))
+	local ok, exists = pcall(isfile, path(self, AUTOLOAD))
+	return ok and exists
 end
 
 --[=[

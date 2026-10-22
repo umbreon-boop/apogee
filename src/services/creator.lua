@@ -10,7 +10,7 @@ local Creator = {_hooks = {}}
 
 -- library defaults per class, `Themed` maps properties to theme keys
 local DEFAULTS = {
-	ScreenGui = {ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling},
+	ScreenGui = {ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 1000000},
 	-- a canvas group only fades its children; Roblox draws its own background opaque by default
 	CanvasGroup = {BackgroundTransparency = 1, BorderSizePixel = 0},
 	Frame = {BorderSizePixel = 0, Themed = {BackgroundColor3 = "Surface", BorderColor3 = "Border"}},
@@ -22,6 +22,7 @@ local DEFAULTS = {
 		Themed = {BackgroundColor3 = "Surface", BorderColor3 = "Border", TextColor3 = "Text"}
 	},
 	TextButton = {
+		Modal = true,
 		AutoButtonColor = false,
 		Text = "",
 		TextSize = 14,
@@ -35,6 +36,7 @@ local DEFAULTS = {
 	},
 	ImageLabel = {BackgroundTransparency = 1, BorderSizePixel = 0, Themed = {BackgroundColor3 = "Surface", BorderColor3 = "Border"}},
 	ImageButton = {
+		Modal = true,
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		AutoButtonColor = false,

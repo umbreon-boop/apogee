@@ -65,11 +65,21 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 
 	-- centered in the parent: the screen for top-level popups, the window for window popups
 	local area = if actualParent:IsA("ScreenGui") then camera.ViewportSize else Measure.Offset(actualParent, actualParent.AbsoluteSize)
-	local centeredX = math.floor((area.X - size.X.Offset) / 2)
-	local centeredY = math.floor((area.Y - size.Y.Offset) / 2)
+	local centeredX = if size.X.Scale > 0
+		then -math.floor(size.X.Offset / 2)
+	else math.floor((area.X - size.X.Offset) / 2)
+	local centeredY = if size.Y.Scale > 0
+		then -math.floor(size.Y.Offset / 2)
+	else math.floor((area.Y - size.Y.Offset) / 2)
 	local position = if config.Position
 		then config.Position
-	else UDim2.fromOffset(centeredX, centeredY)
+	elseif size.X.Scale == 0 and size.Y.Scale == 0 then UDim2.fromOffset(centeredX, centeredY)
+	else UDim2.new(
+		(1 - size.X.Scale) / 2,
+		centeredX,
+		(1 - size.Y.Scale) / 2,
+		centeredY
+	)
 
 	local self = Class.New(Popup, {
 		Size = size,
@@ -78,6 +88,8 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 		_openFrames = {},
 		_dialogs = {},
 		_children = {},
+		_widgets = {},
+		_dropdowns = {},
 		_gui = actualParent,
 		Transparency = if owner then owner.Transparency or 0 else 0,
 		_closeCallback = config.CloseCallback
@@ -98,6 +110,25 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 		Themed = {TextColor3 = "Text"}
 	})
 
+	local subtitleLabel = nil
+	if config.SubTitle and config.SubTitle ~= "" then
+		titleLabel.Size = UDim2.new(1, -BUTTON_SIZE - 24, 0, 20)
+		titleLabel.Position = UDim2.fromOffset(14, 2)
+		subtitleLabel = Creator:New("TextLabel", {
+			RichText = true,
+			Text = config.SubTitle,
+			FontFace = Font.new(Style.Font, Enum.FontWeight.Regular, Enum.FontStyle.Normal),
+			TextSize = Style.Type.Small,
+			TextTransparency = 0.4,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Center,
+			Size = UDim2.new(1, -BUTTON_SIZE - 24, 0, 14),
+			Position = UDim2.fromOffset(14, 20),
+			BackgroundTransparency = 1,
+			Themed = {TextColor3 = "SubText"}
+		})
+	end
+
 	-- the same themeable button as the window title bar
 	local closeButton = Creator:New("TextButton", {
 		AnchorPoint = Vector2.new(1, 0.5),
@@ -109,7 +140,7 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 	local titleBar = Creator:New("Frame", {
 		Size = UDim2.new(1, 0, 0, 38),
 		BackgroundTransparency = 1
-	}, {titleLabel, closeButton})
+	}, {titleLabel, subtitleLabel, closeButton})
 
 	local layout = Creator:New("UIListLayout", {
 		Padding = UDim.new(0, 6),
@@ -168,6 +199,7 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 	rawset(self, "Container", container)
 	rawset(self, "ScrollFrame", container)
 	rawset(self, "TitleLabel", titleLabel)
+	rawset(self, "SubtitleLabel", subtitleLabel)
 	rawset(self, "CloseButton", closeButton)
 	rawset(self, "Backdrop", backdrop)
 	self._barrier = barrier
@@ -178,7 +210,6 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 	self._transitionId = 0
 	-- the content stays hidden until the first fade in
 	Fade.Hide(root)
-
 	local function updateCanvas()
 		container.CanvasSize = UDim2.fromOffset(0, Measure.Rows(container))
 	end
@@ -228,6 +259,9 @@ function Popup:_show(visible: boolean, done: (() -> ())?)
 	if self._destroyed or (visible and self._closing) then
 		return
 	end
+	if not visible then
+		State:CloseDropdowns(self, true)
+	end
 	self._transitionId += 1
 	local transitionId = self._transitionId
 	if visible then
@@ -273,7 +307,6 @@ end
 function Popup:Open()
 	self.Visible = true
 end
-
 local function applyTransparency(parent: Instance, value: number)
 	for _, child in parent:GetChildren() do
 		if child:IsA("ImageLabel") and (child.Name == "Surface" or child.Name == "Icon") then
@@ -308,12 +341,12 @@ end
 	Shows a nested popup window.
 
 	@param config any -- The popup settings
-	@param ... any -- Positional form: the size, then an options table with any other config field
+	@param ... any -- Positional form: the title, then the size and an options table
 	@return [Popup](Popup.md) -- This popup after its visibility has been updated.
 ]=]
 function Popup:Popup(config: any, ...: any): any
 	config = Args.Config({"Title", "Size"}, nil, config, ...)
-	local popup = Popup.New(config, self.Root, self)
+	local popup = Popup.New(config, config.Parent or self.Root, self)
 	State:Adopt(self, popup)
 	return popup
 end
@@ -360,6 +393,12 @@ function Popup:Destroy()
 	self._destroyed = true
 	State:UnregisterHost(self)
 	State:DestroyPopups(self)
+	State:DestroyDropdowns(self)
+	for _, widget in table.clone(self._widgets or {}) do
+		pcall(widget.Destroy, widget)
+	end
+	table.clear(self._widgets or {})
+	table.clear(self._elements or {})
 	State:Orphan(self)
 	self._barrier:Destroy()
 	self.Root:Destroy()

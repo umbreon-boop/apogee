@@ -51,7 +51,15 @@ export type Config = {
 function Input.New(config: Config, parent: any): any
 	assert(config.Title, "Input - Missing Title")
 
-	local self = Class.New(Input, {Numeric = config.Numeric or false, Finished = config.Finished or false})
+	local numeric = config.Numeric
+	local finished = config.Finished
+	local maxLength = config.MaxLength
+	if type(config) == "table" then
+		numeric = if numeric ~= nil then numeric else rawget(config, "Numeric")
+		finished = if finished ~= nil then finished else rawget(config, "Finished")
+		maxLength = if maxLength ~= nil then maxLength else rawget(config, "_maxLength")
+	end
+	local self = Class.New(Input, {Numeric = numeric or false, Finished = finished or false})
 	local element = Element.New(config.Title, config.Description, parent.Container, false, parent._window)
 	element.LabelHolder.Size = UDim2.new(0.50, -14, 0, 0)
 
@@ -61,12 +69,17 @@ function Input.New(config: Config, parent: any): any
 	textbox.Frame.AnchorPoint = Vector2.new(1, 0.5)
 	textbox.Frame.Size = UDim2.fromScale(0.40, 0)
 	Theme:Height(textbox.Frame, "Control")
-	textbox.Input.Text = config.Value or ""
+
+	local initial = config.Value or ""
+	if maxLength and #initial > maxLength then
+		initial = string.sub(initial, 1, maxLength)
+	end
+	textbox.Input.Text = initial
 	textbox.Input.PlaceholderText = config.Placeholder or ""
 
 	self._box = textbox.Input
-	self._maxLength = config.MaxLength
-	self._committed = config.Value or ""
+	self._maxLength = maxLength
+	self._committed = initial
 
 	local SWIPE_THRESHOLD = 10
 	local activeTouch: InputObject? = nil
@@ -112,7 +125,7 @@ function Input.New(config: Config, parent: any): any
 	self:_bind(element)
 	Class.Define(self, {Value = Input._apply})
 	self:From({Title = config.Title, Description = config.Description, Callback = config.Callback})
-	self._storage.Value = config.Value or ""
+	self._storage.Value = initial
 
 	local box = textbox.Input
 	if self.Finished then

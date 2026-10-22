@@ -28,11 +28,24 @@ local Public = {
 	Maid = Maid.new(),
 	Containers = {}
 }
+local function hostShown(host: any): boolean
+	local root = host.Root
+	if root and root.Visible == false then
+		return false
+	end
+	if host.Type == "Popup" then
+		return host.Visible == true
+	end
+	if host.Type == "Window" and host.Minimized then
+		return false
+	end
+	return true
+end
 
 function Public:HasOverlay(targetHost: any?): boolean
 	local activePopup = nil
 	for _, host in self.Containers do
-		if host.Type == "Popup" and host.Visible then
+		if host.Type == "Popup" and hostShown(host) then
 			activePopup = host
 		end
 	end
@@ -40,6 +53,9 @@ function Public:HasOverlay(targetHost: any?): boolean
 		return true
 	end
 	for _, host in self.Containers do
+		if not hostShown(host) then
+			continue
+		end
 		if next(host._dialogs or {}) then
 			return true
 		end
@@ -121,8 +137,22 @@ end
 function Public:DestroyPopups(host: any)
 	for _, child in table.clone(host._children or {}) do
 		if child.Type == "Popup" then
-			child:Destroy()
+			pcall(child.Destroy, child)
 		end
+	end
+end
+
+-- Closes floating dropdowns of a host, so they cannot outlive or float over a hidden window.
+function Public:CloseDropdowns(host: any, instant: boolean?)
+	for _, dropdown in table.clone(host._dropdowns or {}) do
+		pcall(dropdown.Close, dropdown, instant)
+	end
+end
+
+-- Destroys floating dropdowns before their host disappears, including their input barriers.
+function Public:DestroyDropdowns(host: any)
+	for _, dropdown in table.clone(host._dropdowns or {}) do
+		pcall(dropdown.Destroy, dropdown)
 	end
 end
 
@@ -181,6 +211,10 @@ end
 	@return number -- The value rounded to the requested number of decimal places.
 ]=]
 function Apogee:Round(number: number, factor: number): number
+	if factor < 0 then
+		local step = 10 ^ -factor
+		return math.round(number / step) * step
+	end
 	local scale = 10 ^ factor
 	-- Formatting removes binary floating point residue.
 	return tonumber(string.format("%." .. factor .. "f", math.round(number * scale) / scale)) :: number
@@ -294,7 +328,7 @@ function Apogee:Popup(config: any, ...: any): any
 	config = Args.Config({"Title", "Size"}, nil, config, ...)
 	assert(config.Title, "Popup - Missing Title")
 	local parent = self.Current
-	local popup = Popup.New(config, self.GUI, parent)
+	local popup = Popup.New(config, config.Parent or self.GUI, parent)
 	if parent then
 		self:Adopt(parent, popup)
 	end
@@ -313,6 +347,9 @@ function Apogee:Destroy()
 	self.Unloaded = true
 	for _, host in table.clone(Public.Containers) do
 		host:Destroy()
+	end
+	if Notification then
+		Notification.DestroyAll()
 	end
 	table.clear(Config.Widgets)
 	Public.Current = nil
@@ -338,7 +375,7 @@ function Public._initialize()
 	Popup = require("./components/popup")
 	Window = require("./components/window")
 
-	Public.Version = "1.0.4"
+	Public.Version = "1.1.0"
 	Public.Widgets = Config.Widgets
 	Public.Current = nil
 	Public.Windows = Window.GetAll()
@@ -367,7 +404,6 @@ function Public._initialize()
 			Cache = require("@aria/cache"),
 			Deque = require("@aria/deque"),
 			Event = require("@aria/event"),
-			Flate = require("@aria/flate"),
 			Interface = require("@aria/interface"),
 			Maid = require("@aria/maid"),
 			Serde = require("@aria/serde"),

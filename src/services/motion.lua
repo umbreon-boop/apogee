@@ -45,7 +45,6 @@ export type GroupMotor = {
 	Set: (self: any, goals: { [string]: Goal }) -> (),
 	Get: (self: any) -> { [string]: number }
 }
-
 local function stepSpring(self, state, delta)
 	local damping = self._damping
 	local frequency = self._frequency * 2 * math.pi
@@ -95,7 +94,6 @@ local function stepSpring(self, state, delta)
 	local complete = math.abs(speed) < VELOCITY_THRESHOLD and math.abs(position - goal) < POSITION_THRESHOLD
 	return {complete = complete, value = if complete then goal else position, velocity = speed}
 end
-
 local function stepInstant(self)
 	return {complete = true, value = self._target}
 end
@@ -121,7 +119,7 @@ end
 function Motion.Instant(target: number): Goal
 	return {_target = target, Step = stepInstant} :: any
 end
-
+--@inline
 local function newSingle(initial: number, onStep: ((value: number) -> ())?, implicit: boolean)
 	local motor = {_state = {complete = true, value = initial}, _goal = nil, _connection = nil}
 
@@ -257,8 +255,8 @@ function Motion.Tween(
 end
 
 --[=[
-	Creates a spring motor bound to an instance property and returns a setter. Transparency increases
-	are suppressed under overlays unless `ignoreDialog` or the setter's override is true.
+	Creates a spring motor bound to an instance property and returns a setter. Fades toward a
+	visible state are suppressed under overlays unless `ignoreDialog` or the setter's override is true.
 
 	@param initial number -- The starting value
 	@param instance Instance -- The animated instance
@@ -277,7 +275,6 @@ function Motion.Bind(
 	local motor = Motion.Single(initial, function(value)
 		(instance :: any)[property] = value
 	end)
-
 	local function set(value: number, ignore: boolean?)
 		local fade = property == "BackgroundTransparency" or property == "ImageTransparency"
 		if not ignoreDialog and not ignore and fade and State:HasOverlay(targetHost) and value < 1 then

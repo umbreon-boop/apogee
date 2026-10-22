@@ -22,6 +22,9 @@ local Widget = require("./widget")
 ]=]
 local Keybind = Class.Extend({Type = "Keybind"}, Widget)
 
+-- Only one keybind may listen for its replacement key at a time.
+local picking = nil
+
 --[=[
 	@interface KeybindConfig
 	.Name string? -- Persistence key for this widget.
@@ -39,7 +42,6 @@ export type Config = {
 	Mode: ("Toggle" | "Hold" | "Always")?, Callback: ((key: string) -> ())?,
 	Pressed: ((toggled: boolean) -> ())?
 }
-
 local function mouseKey(input: InputObject): string?
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		return "MouseLeft"
@@ -48,7 +50,6 @@ local function mouseKey(input: InputObject): string?
 	end
 	return nil
 end
-
 local function matches(input: InputObject, key: string): boolean
 	if key == "MouseLeft" or key == "MouseRight" then
 		return mouseKey(input) == key
@@ -67,7 +68,12 @@ function Keybind.New(config: Config, parent: any): any
 	assert(config.Title, "Keybind - Missing Title")
 	assert(config.Value, "Keybind - Missing Value")
 
-	local self = Class.New(Keybind, {Toggled = false, _picking = false})
+	local self = Class.New(Keybind, {
+		Toggled = false,
+		_picking = false,
+		_pickToken = nil,
+		_pickConnections = nil
+	})
 	local element = Element.New(config.Title, config.Description, parent.Container, false, parent._window)
 	element.LabelHolder.Size = UDim2.new(0.50, -14, 0, 0)
 
@@ -104,6 +110,9 @@ function Keybind.New(config: Config, parent: any): any
 	self._label = label
 
 	self:_bind(element)
+	element.Frame.Destroying:Connect(function()
+		self:_cancelPick()
+	end)
 	Class.Define(self, {
 		Value = Keybind._apply,
 		Mode = function() end,
@@ -161,7 +170,7 @@ function Keybind.New(config: Config, parent: any): any
 	end, element.Frame)
 
 	State.Connect(UserInputService.InputBegan, function(input)
-		if self._picking or UserInputService:GetFocusedTextBox() or self.Mode ~= "Toggle" then
+		if picking or UserInputService:GetFocusedTextBox() or self.Mode ~= "Toggle" then
 			return
 		end
 
@@ -175,30 +184,60 @@ function Keybind.New(config: Config, parent: any): any
 	return self
 end
 
+function Keybind:_cancelPick()
+	local connections = self._pickConnections
+	self._pickConnections = nil
+	for _, connection in connections or {} do
+		connection:Disconnect()
+	end
+	self._pickToken = nil
+	if picking == self then
+		picking = nil
+	end
+	if self._picking then
+		self._picking = false
+		self._label.Text = self.Value
+	end
+end
+
 function Keybind:_pick()
 	if self._picking then
 		return
 	end
+	if picking and picking ~= self then
+		picking:_cancelPick()
+	end
+	picking = self
 	self._picking = true
+	local token = {}
+	self._pickToken = token
 	self._label.Text = "..."
 	task.wait(0.2)
+
+	-- another keybind may have started picking, or this widget was destroyed
+	if self._pickToken ~= token then
+		self:_cancelPick()
+		return
+	end
 
 	-- the bind takes the last pressed key when that key is released, so held modifiers do not replace it
 	local key: string? = nil
 	local owner = self._element.Frame
-	local began, ended
-	began = State.Connect(UserInputService.InputBegan, function(input)
-		key = if input.UserInputType == Enum.UserInputType.Keyboard then input.KeyCode.Name else mouseKey(input)
+	local began = State.Connect(UserInputService.InputBegan, function(input)
+		local nextKey = if input.UserInputType == Enum.UserInputType.Keyboard then input.KeyCode.Name else mouseKey(input)
+		if nextKey then
+			key = nextKey
+		end
 	end, owner)
-	ended = State.Connect(UserInputService.InputEnded, function(release)
+	local ended = State.Connect(UserInputService.InputEnded, function(release)
 		if not key or not matches(release, key) then
 			return
 		end
-		began:Disconnect()
-		ended:Disconnect()
-		self._picking = false
-		self:SetValue(key)
+		local chosen = key
+		self:_cancelPick()
+		self:SetValue(chosen)
 	end, owner)
+	self._pickConnections = {began, ended}
 end
 
 --[=[
@@ -223,7 +262,10 @@ function Keybind:GetState(): boolean
 		elseif key == "MouseRight" then
 			return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
 		end
-		return UserInputService:IsKeyDown(Enum.KeyCode[key])
+		local ok, keyCode = pcall(function()
+			return Enum.KeyCode[key]
+		end)
+		return ok and keyCode ~= nil and UserInputService:IsKeyDown(keyCode)
 	end
 	return self.Toggled
 end

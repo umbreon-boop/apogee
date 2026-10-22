@@ -56,6 +56,7 @@ function Tab.New(config: Config, window: any): any
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		Size = UDim2.fromOffset(math.max(0, window.TabWidth - 16), Theme:Size("Tab")),
 		BackgroundTransparency = 1,
+		ZIndex = 2,
 		Themed = {TextColor3 = "Text"}
 	})
 
@@ -64,30 +65,54 @@ function Tab.New(config: Config, window: any): any
 			Size = UDim2.fromOffset(16, 16),
 			Position = UDim2.new(0, 8, 0.5, 0),
 			BackgroundTransparency = 1,
+			ZIndex = 2,
 			Themed = {ImageColor3 = "Text"}
 		})
 	self._icon = image
-
-	local function updateTabLayout(width: number)
-		local textX = if image.Visible then 30 else 12
+	local function updateTabLayout(width: number, fitText: boolean?)
+		-- a horizontal tab is a centered content block: padding, icon, gap, text, padding.
+		local iconX = if fitText then 12 else 8
+		image.Position = UDim2.new(0, iconX, 0.5, 0)
+		local textX = if image.Visible then iconX + 16 + 6 else 12
 		label.Position = UDim2.new(0, textX, 0.5, 0)
 		label.Size = UDim2.new(0, math.max(0, width - textX - 12), 1, 0)
+		-- horizontally the tab is sized from the text, so truncating it can still ellipsize a full title
+		label.TextTruncate = if fitText then Enum.TextTruncate.None else Enum.TextTruncate.AtEnd
 	end
 	self._updateTabLayout = updateTabLayout
-	local highlight = Squircle.New(Style.Squircle.Control, {ImageTransparency = 1, Themed = {ImageColor3 = "Hover"}})
+	self._preferredTabWidth = function()
+		-- Measure the text independently of the label's current size. `TextBounds` shrinks with
+		-- the label once truncation kicks in, so reading it here would lock a tab at its current width.
+		-- The icon is part of the centered content block, not extra padding on the left.
+		local content = if image.Visible then 16 + 6 else 0
+		return math.max(Theme:Size("Tab"), math.ceil(Measure.Text(label).X) + 12 + content + 12)
+	end
+	local highlight = Squircle.New(Style.Squircle.Control, {
+		ImageTransparency = 1,
+		ZIndex = 1,
+		Themed = {ImageColor3 = "Hover"}
+	})
 	self._highlight = highlight
 	rawset(self, "Frame", Creator:New("TextButton", {
 		Size = UDim2.new(1, 0, 0, Theme:Size("Tab")),
 		BackgroundTransparency = 1,
+		ZIndex = 1,
 		Parent = window.TabHolder
 	}, {highlight, label, image}))
 	Theme:Height(self.Frame, "Tab")
 	-- a theme without icons moves the label to the left edge
 	Icon.Watch(image, function()
 		updateTabLayout(window.TabWidth)
+		if window.Root then
+			window:_updateTabSection(window.Root.Size.X.Offset)
+		end
 	end)
 	label:GetPropertyChangedSignal("TextBounds"):Connect(function()
-		updateTabLayout(window.TabWidth)
+		if window._horizontalTabs and window.Root then
+			window:_updateTabSection(window.Root.Size.X.Offset)
+		else
+			updateTabLayout(window.TabWidth)
+		end
 	end)
 
 	local layout = Creator:New("UIListLayout", {Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder})
@@ -114,7 +139,6 @@ function Tab.New(config: Config, window: any): any
 		})
 	}))
 	rawset(self, "ScrollFrame", self.Container)
-
 	local function updateCanvas()
 		self.Container.CanvasSize = UDim2.fromOffset(0, Measure.Rows(self.Container))
 	end
@@ -141,7 +165,11 @@ function Tab.New(config: Config, window: any): any
 	Class.Define(self, {
 		Title = function(tab, value: string)
 			label.Text = value
-			updateTabLayout(window.TabWidth)
+			if window._horizontalTabs and window.Root then
+				window:_updateTabSection(window.Root.Size.X.Offset)
+			else
+				updateTabLayout(window.TabWidth)
+			end
 			if tab.Selected then
 				window.TabDisplay.Text = value
 			end

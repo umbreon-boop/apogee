@@ -24,6 +24,7 @@ local PROPERTIES = {
 }
 
 -- records every visible part that is not fully transparent; hidden content and kept children are skipped
+--@inline
 local function collect(host: Instance, keep: ((Instance) -> boolean)?): { any }
 	local entries = {}
 	local function walk(parent: Instance)
@@ -46,13 +47,13 @@ end
 
 -- A part whose value something else changed since the last write leaves the fade and keeps that value. Roblox
 -- stores these values as 32 bit floats, so a value read back differs a little from the written one.
+--@inline
 local function changed(entry: any): boolean
 	if not entry.free and math.abs(entry.instance[entry.property] - entry.last) > 1e-4 then
 		entry.free = true
 	end
 	return entry.free
 end
-
 local function apply(state: any, alpha: number)
 	for _, entry in state.entries do
 		if not changed(entry) then
@@ -62,7 +63,7 @@ local function apply(state: any, alpha: number)
 		end
 	end
 end
-
+--@inline
 local function restore(state: any)
 	for _, entry in state.entries do
 		if not changed(entry) then
@@ -76,6 +77,10 @@ end
 local function prepare(host: GuiObject, alpha: number, keep: ((Instance) -> boolean)?): any
 	local state = states[host]
 	if state then
+		if state.tween then
+			state.tween:Cancel()
+			state.tween = nil
+		end
 		alpha = state.alpha.Value
 		restore(state)
 	else
@@ -84,6 +89,9 @@ local function prepare(host: GuiObject, alpha: number, keep: ((Instance) -> bool
 			apply(state, state.alpha.Value)
 		end)
 		states[host] = state
+		host.Destroying:Connect(function()
+			Fade.Settle(host)
+		end)
 	end
 	state.entries = collect(host, keep)
 	state.alpha.Value = alpha
@@ -115,10 +123,11 @@ function Fade.To(host: GuiObject, visible: boolean, duration: number | TweenInfo
 	local state = prepare(host, if visible then 0 else 1, keep)
 	local token = {}
 	state.token = token
-	Motion.Tween(state.alpha, {Value = if visible then 1 else 0}, duration, nil, nil, function(playback)
+	state.tween = Motion.Tween(state.alpha, {Value = if visible then 1 else 0}, duration, nil, nil, function(playback)
 		if playback ~= Enum.PlaybackState.Completed or state.token ~= token then
 			return
 		end
+		state.tween = nil
 		if visible then
 			Fade.Settle(host)
 		end
@@ -140,6 +149,10 @@ function Fade.Settle(host: GuiObject)
 	end
 	states[host] = nil
 	state.token = nil
+	if state.tween then
+		state.tween:Cancel()
+		state.tween = nil
+	end
 	restore(state)
 	state.alpha:Destroy()
 end

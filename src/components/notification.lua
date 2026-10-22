@@ -34,16 +34,21 @@ export type Config = {
 
 local Notification = {Holder = nil}
 Notification.__index = Notification
+local active = {}
 local PAD = 14
 local ICON_SIZE = 22
-local CLOSE_SIZE = 20
+local CLOSE_SIZE = 32
+-- Match the window close control's center: 10 px from the right plus half its 28 px button,
+-- and half the 42 px title bar height from the top. Keep the toast hit area larger around that center.
+local CLOSE_CENTER_RIGHT = 10 + 28 / 2
+local CLOSE_CENTER_TOP = 42 / 2
 local FIXED_HEIGHT = 58
 local MIN_WIDTH = 200
 local MAX_WIDTH = 450
 local TRANSITION_DURATION = 0.2
 local TRANSITION_EASING = Enum.EasingStyle.Quint
 local TRANSITION_DIRECTION = Enum.EasingDirection.Out
-
+--@inline
 local function label(text: string, size: number, weight: Enum.FontWeight, key: string): TextLabel
 	return Creator:New("TextLabel", {
 		FontFace = Font.new(Style.Font, weight, Enum.FontStyle.Normal),
@@ -92,6 +97,7 @@ end
 ]=]
 function Notification.New(config: Config, window: any?): any
 	local self = setmetatable({Closed = false, _window = window}, Notification)
+	active[self] = true
 
 	-- Custom Icon
 	local iconName = config.Icon
@@ -118,6 +124,9 @@ function Notification.New(config: Config, window: any?): any
 	-- Title and Contents
 	self.Title = label(config.Title or "Notification", Style.Type.Body, Enum.FontWeight.Bold, "Text")
 	self.ContentLabel = label(config.Content or "", Style.Type.Small, Enum.FontWeight.Regular, "Text")
+	if config.SubContent and config.SubContent ~= "" then
+		self.SubContentLabel = label(config.SubContent, Style.Type.Small, Enum.FontWeight.Regular, "SubText")
+	end
 
 	self.LabelHolder = Creator:New("Frame", {
 		AutomaticSize = Enum.AutomaticSize.Y,
@@ -133,28 +142,34 @@ function Notification.New(config: Config, window: any?): any
 			Padding = UDim.new(0, 2)
 		}),
 		self.Title,
-		self.ContentLabel
+		self.ContentLabel,
+		self.SubContentLabel
 	})
 
 	-- Rounded square close button
 	local closeHover = Squircle.New(Style.Squircle.Small, {
 		ImageTransparency = 1,
+		ZIndex = 1,
 		Themed = {ImageColor3 = "Hover"}
 	})
 	local closeIcon = Creator:New("ImageLabel", {
+		Name = "CloseIcon",
 		Image = Icons.GetIcon("x"),
 		Size = UDim2.fromOffset(14, 14),
 		Position = UDim2.fromScale(0.5, 0.5),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		BackgroundTransparency = 1,
+		ZIndex = 2,
 		Themed = {ImageColor3 = "SubText"}
 	})
 	self.CloseButton = Creator:New("TextButton", {
 		Text = "",
-		Position = UDim2.new(1, -PAD, 0.5, 0),
+		Position = UDim2.new(1, -CLOSE_CENTER_RIGHT, 0, CLOSE_CENTER_TOP),
 		Size = UDim2.fromOffset(CLOSE_SIZE, CLOSE_SIZE),
-		AnchorPoint = Vector2.new(1, 0.5),
-		BackgroundTransparency = 1
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundTransparency = 1,
+		Active = true,
+		ZIndex = 1
 	}, {closeHover, closeIcon})
 
 	local _, closeFade = Motion.Bind(1, closeHover, "ImageTransparency", true)
@@ -167,6 +182,7 @@ function Notification.New(config: Config, window: any?): any
 
 	self.Root = Creator:New("Frame", {
 		BackgroundTransparency = 1,
+		Active = true,
 		Size = UDim2.fromScale(1, 1),
 		Position = UDim2.new(1, 60, 0, 0),
 		ClipsDescendants = true
@@ -181,16 +197,22 @@ function Notification.New(config: Config, window: any?): any
 	self.CloseButton.MouseButton1Click:Connect(function()
 		self:Close()
 	end)
-
 	local function updateSize()
 		local textWidth = math.max(Measure.Text(self.Title).X, Measure.Text(self.ContentLabel).X)
+		if self.SubContentLabel then
+			textWidth = math.max(textWidth, Measure.Text(self.SubContentLabel).X)
+		end
 		local naturalWidth = textLeft + textWidth + 12 + CLOSE_SIZE + PAD
 		local targetWidth = config.Width or math.clamp(naturalWidth, MIN_WIDTH, MAX_WIDTH)
 		self.Holder.Size = UDim2.fromOffset(targetWidth, FIXED_HEIGHT)
 	end
 
-	for _, textObj in {self.Title, self.ContentLabel} do
-		textObj:GetPropertyChangedSignal("Text"):Connect(updateSize)
+	for _, textObj in {self.Title, self.ContentLabel, self.SubContentLabel} do
+		if textObj then
+			for _, property in {"Text", "FontFace", "TextSize"} do
+				textObj:GetPropertyChangedSignal(property):Connect(updateSize)
+			end
+		end
 	end
 	-- a theme without icons moves the text to the left edge
 	Icon.Watch(self.Icon, function(shown)
@@ -204,7 +226,8 @@ function Notification.New(config: Config, window: any?): any
 	if window then
 		State:Adopt(window, self)
 	end
-	task.delay(config.Duration or 5, function()
+	self._timer = task.delay(config.Duration or 5, function()
+		self._timer = nil
 		self:Close()
 	end)
 
@@ -227,6 +250,10 @@ function Notification:Close()
 	end
 
 	self.Closed = true
+	if self._timer then
+		pcall(task.cancel, self._timer)
+		self._timer = nil
+	end
 	Motion.Tween(self.Root, {Position = UDim2.new(1, 60, 0, 0)}, TRANSITION_DURATION, TRANSITION_EASING, TRANSITION_DIRECTION, function(state)
 		if state ~= Enum.PlaybackState.Completed then
 			return
@@ -243,12 +270,25 @@ function Notification:SetTransparency(value: number)
 end
 
 function Notification:Destroy()
+	active[self] = nil
+	self.Closed = true
+	if self._timer then
+		pcall(task.cancel, self._timer)
+		self._timer = nil
+	end
 	State:Orphan(self)
 	if self.Holder then
 		self.Holder.Visible = false
 		local maid = Maid.new()
 		maid:Task(self.Holder)
 		maid:DeferredClean(0.01)
+	end
+end
+
+-- Cancels toast timers and removes toasts before the root GUI is destroyed.
+function Notification.DestroyAll()
+	for notification in table.clone(active) do
+		pcall(notification.Destroy, notification)
 	end
 end
 

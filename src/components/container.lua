@@ -44,7 +44,6 @@ local POSITIONAL = {
 
 -- fields whose positional value is a table, so a table there is that value and not the options
 local TABLE_FIELDS = {Dropdown = {Values = true, Value = true}}
-
 local function configFor(name: string, first: any, ...: any): {[string]: any}
 	return Args.Config(POSITIONAL[name], TABLE_FIELDS[name], first, ...)
 end
@@ -104,7 +103,7 @@ for name, widget in WIDGETS do
 
 		local object = widget.New(config, self)
 		if self.Type == "Section" then
-			object._element:Group(self:_row())
+			object._element:Group(self:_row(), self)
 		elseif self.Type == "Layout" then
 			self:_attach(object)
 		elseif (self.Type == "Tab" or self.Type == "Popup") and self._updateCanvas then

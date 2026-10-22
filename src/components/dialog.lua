@@ -32,20 +32,21 @@ local OVERLAY_ZINDEX = 10
 -- the same curve as the other transitions: fast at the start, soft at the end
 local OPEN = TweenInfo.new(TRANSITION_DURATION, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 local CLOSE = OPEN
-
+--@inline
 local function tween(instance: Instance, properties: { [string]: any }, info: TweenInfo, completed: ((Enum.PlaybackState) -> ())?)
 	return Motion.Tween(instance, properties, info, nil, nil, completed)
 end
 
 -- rounds a size up to an even number of pixels, so a centered card starts on a whole pixel
+--@inline
 local function even(size: number): number
 	return math.ceil(size / 2) * 2
 end
-
+--@inline
 local function trayHeight(): number
 	return Theme:Size("Button") + 2 * Style.Space.XS
 end
-
+--@inline
 local function track(dialog: any, open: boolean)
 	local dialogs = dialog._window and dialog._window._dialogs
 	if dialogs then
@@ -54,7 +55,7 @@ local function track(dialog: any, open: boolean)
 end
 
 --[=[
-	Creates a new, closed dialog over a window. Presses on the overlay's title strip still move the window.
+	Creates a new, closed modal dialog over a window. The overlay blocks presses on the window chrome.
 
 	@param window Window -- The window the overlay covers
 	@return [Dialog](Dialog.md) -- The newly created and displayed dialog.
@@ -145,6 +146,7 @@ function Dialog.New(window: any): any
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		BackgroundTransparency = 1,
+		ClipsDescendants = true,
 		Parent = self.TintFrame
 	}, {
 		Squircle.New(Style.Squircle.Window, {
@@ -256,6 +258,8 @@ function Dialog:_updateLayout()
 	local textSectionBottom = TOP_PAD + 24 + (if hasContent then 4 + contentHeight else 0) + 12
 	local neededHeight = textSectionBottom + trayHeight()
 	local targetHeight = math.clamp(neededHeight, MIN_HEIGHT, limitY)
+	local availableContentHeight = math.max(0, even(targetHeight) - trayHeight() - 56)
+	contentHeight = math.min(contentHeight, availableContentHeight)
 
 	self.Root.Size = UDim2.fromOffset(even(targetWidth), even(targetHeight))
 	self:_place()

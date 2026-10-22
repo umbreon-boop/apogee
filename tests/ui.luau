@@ -16,6 +16,7 @@ local AREAS = {
 	{"window", require("./ui/window")},
 	{"api", require("./ui/api")},
 	{"regressions", require("./ui/regressions")},
+	{"fixes", require("./ui/fixes")},
 	{"unload", require("./ui/unload")},
 	{"examples", require("./ui/examples")}
 }

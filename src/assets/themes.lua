@@ -13,8 +13,6 @@ else Vector2.new(1920, 1080)
 local baseDiagonal = math.sqrt(1920 * 1920 + 1080 * 1080)
 local currentDiagonal = math.sqrt(initialViewport.X * initialViewport.X + initialViewport.Y * initialViewport.Y)
 local scale = math.clamp(currentDiagonal / baseDiagonal, 0.85, 1.5)
-
---@inline
 local function scaled(size: number): number
 	return math.round(size * scale)
 end

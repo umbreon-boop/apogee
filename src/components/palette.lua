@@ -33,7 +33,6 @@ local GRIP_EXTRA_WIDTH = 12
 local GRIP_EXTRA_HEIGHT = 16
 
 local isPress = Pointer.IsPress
-
 local function corner(radius: UDim?): UICorner
 	return Frame.Corner(radius or UDim.new(0, 4))
 end
@@ -45,7 +44,7 @@ local function checker(props: { [string]: any }, children: { Instance }?): Insta
 	props.TileSize = UDim2.fromOffset(8, 8)
 	return Creator:New("ImageLabel", props, children)
 end
-
+--@inline
 local function alphaHandle(): Frame
 	return Creator:New("Frame", {
 		Size = UDim2.fromOffset(22, 14),
@@ -59,6 +58,7 @@ end
 
 -- A track fill: one frame with a vertical gradient. Unlike strips of frames, a gradient follows the rounded corners
 -- of its frame, so both ends of a track are round.
+--@inline
 local function gradient(parent: Instance, color: ColorSequence, transparency: NumberSequence?): Frame
 	return Creator:New("Frame", {
 		Size = UDim2.fromScale(1, 1),
@@ -72,6 +72,7 @@ local function gradient(parent: Instance, color: ColorSequence, transparency: Nu
 end
 
 -- the hue spectrum is linear between its seven primaries, so seven keypoints draw it exactly
+--@inline
 local function spectrum(): ColorSequence
 	local keypoints = {}
 	for index = 0, 6 do
@@ -82,6 +83,7 @@ end
 
 -- An invisible button larger than a thin track, so the track is easy to grab with a finger. It is as wide as the
 -- gap between the tracks allows and reaches past both ends.
+--@inline
 local function grip(track: GuiObject): TextButton
 	return Creator:New("TextButton", {
 		Size = UDim2.new(1, GRIP_EXTRA_WIDTH, 1, GRIP_EXTRA_HEIGHT),
@@ -92,7 +94,7 @@ local function grip(track: GuiObject): TextButton
 		Parent = track
 	})
 end
-
+--@inline
 local function fraction(value: number, origin: number, length: number): number
 	return (math.clamp(value, origin, origin + length) - origin) / length
 end
@@ -340,8 +342,7 @@ end
 
 function Palette:_connect()
 	local fields = self._fields
-
-	local function commitHex()
+local function commitHex()
 		local text = string.gsub(fields.Hex.Text, "[#%s]", "")
 		local success, color = pcall(Color3.fromHex, text)
 		if success and typeof(color) == "Color3" then
