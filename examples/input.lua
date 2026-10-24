@@ -26,7 +26,9 @@ tab:Section("Config table, required only"):Input({
 	Title = "Display name"
 })
 
-tab:Section("Shorthand, all fields"):Input("Display name", "Guest", report, "Enter a name", {
+tab:Section("Shorthand, all fields"):Input("Display name", "Guest", function(value)
+	print("Name changed:", value)
+end, "Enter a name", {
 	Name = "InputShorthand",
 	Description = "Numeric commits only complete values.",
 	Persist = true,

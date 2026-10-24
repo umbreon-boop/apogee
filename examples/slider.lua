@@ -29,7 +29,9 @@ tab:Section("Config table, required only"):Slider({
 	Rounding = 2
 })
 
-tab:Section("Shorthand, all fields"):Slider("Volume", 0.65, 0, 1, 2, report, {
+tab:Section("Shorthand, all fields"):Slider("Volume", 0.65, 0, 1, 2, function(value)
+	print("Volume:", value)
+end, {
 	Name = "SliderShorthand",
 	Description = "Values are clamped to the range and rounded before callbacks run.",
 	Persist = true

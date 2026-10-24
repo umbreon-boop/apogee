@@ -22,7 +22,9 @@ tab:Section("Config table, required only"):Toggle({
 	Title = "Enable feature"
 })
 
-tab:Section("Shorthand, all fields"):Toggle("Enable feature", true, report, "Named widgets are available to the config service.", {
+tab:Section("Shorthand, all fields"):Toggle("Enable feature", true, function(enabled)
+	print("Feature state:", enabled)
+end, "Named widgets are available to the config service.", {
 	Name = "ToggleShorthand",
 	Persist = true
 })

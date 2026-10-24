@@ -1,40 +1,24 @@
 local Apogee = require("../src/init")
 
-local window = Apogee:Window({Title = "Apogee", SubTitle = "Quick start"})
-local tab = window:Tab({Title = "Main", Icon = "house"})
-local section = tab:Section({Title = "Controls"})
+local window = Apogee:Window("Apogee", "Quick start")
+local tab = window:Tab("Main", "house")
+local section = tab:Section("Controls")
 
-local enabled = section:Toggle({
-	Title = "Enabled",
-	Value = false,
-	Name = "Enabled"
-})
+local volume = section:Slider("Volume", 50, 0, 100, 0, function(value)
+	print("Volume:", value)
+end, {Name = "Volume"})
 
-enabled:OnChanged(function(value)
+section:Toggle("Enabled", false, function(value)
 	print("Enabled:", value)
+end, {Name = "Enabled"})
+
+section:Button("Reset", function()
+	volume:SetValue(50)
 end)
 
-local volume = section:Slider({
-	Title = "Volume",
-	Value = 50,
-	Min = 0,
-	Max = 100,
-	Rounding = 0
-})
-
-section:Button({
-	Title = "Reset",
-	Callback = function()
-		volume:SetValue(50)
-	end
-})
-
-section:Button({
-	Title = "Open popup",
-	Callback = function()
-		local popup = Apogee:Popup({Title = "Quick popup", Size = UDim2.fromOffset(300, 180)})
-		popup:Paragraph({Title = "Hello", Description = "Widgets can live in a popup too."})
-	end
-})
+section:Button("Open popup", function()
+	local popup = Apogee:Popup("Quick popup", UDim2.fromOffset(300, 180))
+	popup:Paragraph("Hello", "Widgets can live in a popup too.")
+end)
 
 window:Settings()

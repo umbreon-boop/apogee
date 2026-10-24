@@ -29,7 +29,11 @@ tab:Section("Config table, required only"):Keybind({
 	Value = "G"
 })
 
-tab:Section("Shorthand, all fields"):Keybind("Toggle overlay", "G", changed, "Toggle", pressed, {
+tab:Section("Shorthand, all fields"):Keybind("Toggle overlay", "G", function(key)
+	print("Binding changed to:", key)
+end, "Toggle", function(active)
+	print("Overlay active:", active)
+	end, {
 	Name = "KeybindShorthand",
 	Description = "Pressed runs on each press in Toggle mode.",
 	Persist = true

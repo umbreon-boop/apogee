@@ -26,7 +26,9 @@ tab:Section("Config table, required only"):ColorPicker({
 	Value = DEFAULT
 })
 
-tab:Section("Shorthand, all fields"):ColorPicker("Accent color", DEFAULT, report, 0, {
+tab:Section("Shorthand, all fields"):ColorPicker("Accent color", DEFAULT, function(color, transparency)
+	print("Color:", color, "alpha:", transparency)
+end, 0, {
 	Name = "ColorPickerShorthand",
 	Description = "Supplying Transparency enables alpha editing.",
 	Persist = true

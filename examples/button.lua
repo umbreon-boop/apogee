@@ -21,7 +21,9 @@ tab:Section("Config table, required only"):Button({
 	Title = "Confirm action"
 })
 
-tab:Section("Shorthand, all fields"):Button("Confirm action", confirm, "Buttons have no Value state.", {
+tab:Section("Shorthand, all fields"):Button("Confirm action", function()
+	print("Action confirmed")
+end, "Buttons have no Value state.", {
 	Name = "ButtonShorthand",
 	Persist = true
 })

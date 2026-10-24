@@ -21,15 +21,9 @@ for i = 1, 15 do
 		table.insert(values, string.format("Option %d - Item %d", i, j))
 	end
 
-	dropdownSection:Dropdown({
-		Title = string.format("Dropdown %d", i),
-		Description = string.format("Dropdown #%d containing 100 selectable options", i),
-		Values = values,
-		Value = values[1],
-		Callback = function(selected)
-			print(string.format("Dropdown %d selection changed: %s", i, tostring(selected)))
-		end,
-	})
+	dropdownSection:Dropdown(string.format("Dropdown %d", i), values, values[1], function(selected)
+		print(string.format("Dropdown %d selection changed: %s", i, tostring(selected)))
+	end, {Description = string.format("Dropdown #%d containing 100 selectable options", i)})
 end
 
 -- 2. Create 200 other random elements
@@ -43,74 +37,38 @@ for i = 1, 200 do
 	local kind = math.random(1, 7)
 
 	if kind == 1 then
-		randomSection:Button({
-			Title = string.format("Button %d", i),
-			Description = string.format("Random button component #%d", i),
-			Callback = function()
-				print(string.format("Button %d clicked", i))
-			end,
-		})
+		randomSection:Button(string.format("Button %d", i), function()
+			print(string.format("Button %d clicked", i))
+		end, string.format("Random button component #%d", i))
 	elseif kind == 2 then
-		randomSection:Toggle({
-			Title = string.format("Toggle %d", i),
-			Description = string.format("Random toggle component #%d", i),
-			Value = math.random() > 0.5,
-			Callback = function(enabled)
-				print(string.format("Toggle %d toggled: %s", i, tostring(enabled)))
-			end,
-		})
+		randomSection:Toggle(string.format("Toggle %d", i), math.random() > 0.5, function(enabled)
+			print(string.format("Toggle %d toggled: %s", i, tostring(enabled)))
+		end, string.format("Random toggle component #%d", i))
 	elseif kind == 3 then
 		local minVal = math.random(0, 50)
 		local maxVal = minVal + math.random(50, 100)
 		local initialVal = math.random(minVal, maxVal)
-		randomSection:Slider({
-			Title = string.format("Slider %d", i),
-			Description = string.format("Random slider component [%d - %d]", minVal, maxVal),
-			Value = initialVal,
-			Min = minVal,
-			Max = maxVal,
-			Rounding = 1,
-			Callback = function(val)
-				print(string.format("Slider %d value: %d", i, val))
-			end,
-		})
+		randomSection:Slider(string.format("Slider %d", i), initialVal, minVal, maxVal, 1, function(val)
+			print(string.format("Slider %d value: %d", i, val))
+		end, {Description = string.format("Random slider component [%d - %d]", minVal, maxVal)})
 	elseif kind == 4 then
-		randomSection:Input({
-			Title = string.format("Input %d", i),
-			Value = string.format("Text input %d", i),
-			Placeholder = string.format("Type here for #%d...", i),
-			Callback = function(text)
-				print(string.format("Input %d text: %s", i, tostring(text)))
-			end,
-		})
+		randomSection:Input(string.format("Input %d", i), string.format("Text input %d", i), function(text)
+			print(string.format("Input %d text: %s", i, tostring(text)))
+		end, string.format("Type here for #%d...", i))
 	elseif kind == 5 then
 		local randomColor = Color3.fromRGB(math.random(0, 255), math.random(0, 255), math.random(0, 255))
-		randomSection:ColorPicker({
-			Title = string.format("Color Picker %d", i),
-			Description = string.format("Random color picker component #%d", i),
-			Value = randomColor,
-			Callback = function(color)
-				print(string.format("ColorPicker %d: %s", i, tostring(color)))
-			end,
-		})
+		randomSection:ColorPicker(string.format("Color Picker %d", i), randomColor, function(color)
+			print(string.format("ColorPicker %d: %s", i, tostring(color)))
+		end, {Description = string.format("Random color picker component #%d", i)})
 	elseif kind == 6 then
 		local defaultKey = availableKeys[math.random(1, #availableKeys)]
-		randomSection:Keybind({
-			Title = string.format("Keybind %d", i),
-			Value = defaultKey,
-			Mode = "Toggle",
-			Callback = function(key)
-				print(string.format("Keybind %d rebound to: %s", i, tostring(key)))
-			end,
-			Pressed = function(active)
-				print(string.format("Keybind %d pressed: %s", i, tostring(active)))
-			end,
-		})
+		randomSection:Keybind(string.format("Keybind %d", i), defaultKey, function(key)
+			print(string.format("Keybind %d rebound to: %s", i, tostring(key)))
+		end, "Toggle", function(active)
+			print(string.format("Keybind %d pressed: %s", i, tostring(active)))
+		end)
 	elseif kind == 7 then
-		randomSection:Paragraph({
-			Title = string.format("Information %d", i),
-			Description = string.format("Static paragraph informational component #%d.", i),
-		})
+		randomSection:Paragraph(string.format("Information %d", i), string.format("Static paragraph informational component #%d.", i))
 	end
 end
 

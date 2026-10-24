@@ -28,7 +28,9 @@ tab:Section("Config table, required only"):Dropdown({
 	Values = QUALITY
 })
 
-tab:Section("Shorthand, all fields"):Dropdown("Quality", QUALITY, 2, report, {
+tab:Section("Shorthand, all fields"):Dropdown("Quality", QUALITY, 2, function(value)
+	print("Quality:", value)
+end, {
 	Name = "DropdownShorthand",
 	Description = "AllowNull lets a single selection be cleared.",
 	Persist = true,
