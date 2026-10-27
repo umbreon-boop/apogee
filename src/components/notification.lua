@@ -222,7 +222,9 @@ function Notification.New(config: Config, window: any?): any
 	-- a theme without icons moves the text to the left edge
 	Icon.Watch(self.Icon, function(shown)
 		textLeft = PAD
-		if shown then textLeft = iconLeft end
+		if shown then
+			textLeft = iconLeft
+		end
 		self.LabelHolder.Size = UDim2.new(1, -(textLeft + PAD + CLOSE_SIZE + 6), 0, 0)
 		self.LabelHolder.Position = UDim2.new(0, textLeft, 0.5, 0)
 		updateSize()

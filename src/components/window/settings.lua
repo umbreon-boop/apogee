@@ -99,7 +99,9 @@ function Settings.Configs(tab: any): any
 	--@inline
 	local function describeAutoload()
 		local status = "none"
-		if Config:HasAutoload() then status = "set" end
+		if Config:HasAutoload() then
+			status = "set"
+		end
 		autoload:SetDesc("Autoload config: " .. status)
 	end
 	--@inline

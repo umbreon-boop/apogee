@@ -255,7 +255,9 @@ function Dialog:_updateLayout()
 	end
 
 	local contentGap = 0
-	if hasContent then contentGap = 4 + contentHeight end
+	if hasContent then
+		contentGap = 4 + contentHeight
+	end
 	local textSectionBottom = TOP_PAD + 24 + contentGap + 12
 	local neededHeight = textSectionBottom + trayHeight()
 	local targetHeight = math.clamp(neededHeight, MIN_HEIGHT, limitY)
@@ -362,7 +364,9 @@ function Dialog:Button(title: string?, callback: (() -> boolean?)?, style: strin
 	local role = style
 	if not role then
 		role = "Standard"
-		if self._buttons == 1 then role = "Suggested" end
+		if self._buttons == 1 then
+			role = "Suggested"
+		end
 	end
 	action:SetRole(role)
 

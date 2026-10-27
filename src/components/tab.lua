@@ -71,10 +71,14 @@ function Tab.New(config: Config, window: any): any
 	local function updateTabLayout(width: number, fitText: boolean?)
 		-- a horizontal tab is a centered content block: padding, icon, gap, text, padding.
 		local iconX = 8
-		if fitText then iconX = 12 end
+		if fitText then
+			iconX = 12
+		end
 		image.Position = UDim2.new(0, iconX, 0.5, 0)
 		local textX = 12
-		if image.Visible then textX = iconX + 16 + 6 end
+		if image.Visible then
+			textX = iconX + 16 + 6
+		end
 		label.Position = UDim2.new(0, textX, 0.5, 0)
 		label.Size = UDim2.new(0, math.max(0, width - textX - 12), 1, 0)
 		-- horizontally the tab is sized from the text, so truncating it can still ellipsize a full title
@@ -86,7 +90,9 @@ function Tab.New(config: Config, window: any): any
 		-- the label once truncation kicks in, so reading it here would lock a tab at its current width.
 		-- The icon is part of the centered content block, not extra padding on the left.
 		local content = 0
-		if image.Visible then content = 16 + 6 end
+		if image.Visible then
+			content = 16 + 6
+		end
 		return math.max(Theme:Size("Tab"), math.ceil(Measure.Text(label).X) + 12 + content + 12)
 	end
 	local highlight = Squircle.New(Style.Squircle.Control, {

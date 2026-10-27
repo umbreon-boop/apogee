@@ -206,7 +206,9 @@ function Dropdown.New(config: Config, parent: any): any
 	-- a theme without icons gives the value the space of the chevron
 	Icon.Watch(inner:FindFirstChild("Chevron"), function(shown)
 		local width = -16
-		if shown then width = -24 end
+		if shown then
+			width = -24
+		end
 		display.Size = UDim2.new(1, width, 0, 14)
 	end)
 

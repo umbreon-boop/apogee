@@ -164,7 +164,9 @@ end
 ]=]
 function Action:SetPrimary(primary: boolean)
 	local role = "Standard"
-	if primary then role = "Suggested" end
+	if primary then
+		role = "Suggested"
+	end
 	self:SetRole(role)
 end
 
@@ -175,7 +177,9 @@ end
 ]=]
 function Action:SetDestructive(destructive: boolean)
 	local role = "Standard"
-	if destructive then role = "Destructive" end
+	if destructive then
+		role = "Destructive"
+	end
 	self:SetRole(role)
 end
 

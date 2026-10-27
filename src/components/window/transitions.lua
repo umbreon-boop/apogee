@@ -112,7 +112,9 @@ function Transitions:Maximize(value: boolean, keepPosition: boolean?, instant: b
 	local goals = {Size = size}
 	if not keepPosition then
 		goals.Position = self.Position
-		if value then goals.Position = UDim2.fromOffset(maxPosition.X, maxPosition.Y) end
+		if value then
+			goals.Position = UDim2.fromOffset(maxPosition.X, maxPosition.Y)
+		end
 	end
 
 	local transitionId = Transitions._cancel(self)

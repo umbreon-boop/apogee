@@ -161,7 +161,9 @@ function Minimizer:_show(visible: boolean, duration: number)
 		button.Visible = visible
 	end)
 	local transparency = 1
-	if visible then transparency = self._window.Transparency or 0 end
+	if visible then
+		transparency = self._window.Transparency or 0
+	end
 	Motion.Tween(button, {ImageTransparency = transparency}, duration)
 end
 

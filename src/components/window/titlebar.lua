@@ -232,7 +232,9 @@ end
 ]=]
 function TitleBar:SetMaximized(maximized: boolean)
 	local iconName = "scan"
-	if maximized then iconName = "minimize-2" end
+	if maximized then
+		iconName = "minimize-2"
+	end
 	styleButtonIcon(self.MaxButton, self._window, iconName, nil, "□")
 end
 

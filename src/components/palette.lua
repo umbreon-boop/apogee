@@ -146,7 +146,9 @@ function Palette:_build()
 
 	local root = dialog.Root
 	local column = 240
-	if self._alpha then column = 260 end
+	if self._alpha then
+		column = 260
+	end
 
 	local card = dialog.Root.Size
 	local scale = math.min(1, (card.X.Offset - BLOCK_X) / BLOCK_W, (card.Y.Offset - BLOCK_Y - TRAY_HEIGHT - GAP) / BLOCK_H)

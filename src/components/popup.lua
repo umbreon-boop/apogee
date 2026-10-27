@@ -62,8 +62,12 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 	or Measure.Offset(actualParent, actualParent.AbsoluteSize)
 	local centeredX = math.floor((area.X - size.X.Offset) / 2)
 	local centeredY = math.floor((area.Y - size.Y.Offset) / 2)
-	if size.X.Scale > 0 then centeredX = -math.floor(size.X.Offset / 2) end
-	if size.Y.Scale > 0 then centeredY = -math.floor(size.Y.Offset / 2) end
+	if size.X.Scale > 0 then
+		centeredX = -math.floor(size.X.Offset / 2)
+	end
+	if size.Y.Scale > 0 then
+		centeredY = -math.floor(size.Y.Offset / 2)
+	end
 	local position
 	if config.Position then
 		position = config.Position
@@ -78,7 +82,9 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 		)
 	end
 	local transparency = 0
-	if owner then transparency = owner.Transparency or 0 end
+	if owner then
+		transparency = owner.Transparency or 0
+	end
 
 	local self = Class.New(Popup, {
 		Size = size,

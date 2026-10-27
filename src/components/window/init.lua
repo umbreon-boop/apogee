@@ -83,7 +83,9 @@ local DEFAULT_TAB_WIDTH = 160
 local MAX_TAB_WIDTH = 240
 -- the invisible splitter is wider than the gap it sits in, and wider again for fingers
 local SPLITTER_WIDTH = 20
-if UserInputService.TouchEnabled then SPLITTER_WIDTH = 36 end
+if UserInputService.TouchEnabled then
+	SPLITTER_WIDTH = 36
+end
 local MIN_SIZE = Vector2.new(430, 200)
 local MAX_SIZE = Vector2.new(2048, 2048)
 local SCREEN_MARGIN = 16
@@ -119,7 +121,9 @@ end
 local function minimumContentWidth(target: any): number
 	local needed = Resize.RequiredWidth(target)
 	local neededWidth = 0
-	if needed > 0 then neededWidth = needed + LAYOUT_CLEARANCE end
+	if needed > 0 then
+		neededWidth = needed + LAYOUT_CLEARANCE
+	end
 	return math.max(MIN_CONTENT_WIDTH, neededWidth)
 end
 
@@ -455,7 +459,9 @@ function Window:_fitScreen()
 	self.Position = UDim2.fromOffset(x, y)
 	-- a minimized window keeps its minimized position, the restore animation moves it back
 	local position
-	if not self.Minimized then position = Vector2.new(x, y) end
+	if not self.Minimized then
+		position = Vector2.new(x, y)
+	end
 	self:_place(size, position)
 end
 
@@ -590,7 +596,9 @@ end
 ]=]
 function Window:SelectTab(target: any)
 	local tab = target
-	if type(target) == "number" then tab = self.Tabs[target] end
+	if type(target) == "number" then
+		tab = self.Tabs[target]
+	end
 	if not tab or not table.find(self.Tabs, tab) then
 		return
 	end

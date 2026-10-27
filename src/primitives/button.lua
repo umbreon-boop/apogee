@@ -55,7 +55,9 @@ function Button.New(config: Config, parent: any): any
 	-- a theme without icons gives the label the space of the chevron
 	Icon.Watch(chevron, function(shown)
 		local width = -24
-		if shown then width = -40 end
+		if shown then
+			width = -40
+		end
 		element.LabelHolder.Size = UDim2.new(1, width, 0, 0)
 	end)
 

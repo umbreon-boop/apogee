@@ -69,7 +69,9 @@ function Frame.New(radius: number, props: { [string]: any }?, children: { Instan
 	end
 	local shape = settings.Shape or "Full"
 	local class = "ImageLabel"
-	if settings.Button then class = "ImageButton" end
+	if settings.Button then
+		class = "ImageButton"
+	end
 	settings.Shape = nil
 	settings.Button = nil
 
