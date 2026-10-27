@@ -28,7 +28,7 @@ local Tab = Class.Extend({Type = "Tab"}, Container)
 	.Title string
 	.Icon string?
 	@within Tab
-	`Icon` is either an icon name or an asset id.
+	`Icon` is an icon name.
 ]=]
 export type Config = { Title: string, Icon: string? }
 

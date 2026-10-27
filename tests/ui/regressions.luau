@@ -187,6 +187,7 @@ return function(t)
 
 		-- unresolved icons never fall back to Roblox asset delivery
 		check(Apogee:GetIcon("rbxthumb://type=Asset&id=1") == nil, "unpacked URLs do not bypass the asset manager")
+		check(Apogee:GetIcon("rbxassetid://12345") == nil, "raw asset ids are not resolved")
 		local icons = Apogee.internals.assets.icons
 		local assetManager = Apogee.internals.assets.manager
 		check(icons.DefaultType == "core", "the embedded core icon pack is the default")
@@ -227,6 +228,7 @@ return function(t)
 			and localImage(Apogee:GetIcon("tabler-filled:home")),
 			"icon names resolve to local packed images")
 		icons.AddPack("regression", {numeric = 12345})
+		check(icons.Packs.regression.numeric == nil, "custom icon packs reject numeric asset ids")
 		check(Apogee:GetIcon("regression:numeric") == nil, "custom icon packs do not use rbxasset fallbacks")
 		icons.Packs.regression = nil
 

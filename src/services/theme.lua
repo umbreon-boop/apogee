@@ -22,10 +22,11 @@ local function readable(theme: any, key: string): Color3
 	-- relative luminance, so mid tones like the indigo accent pick the right side
 	--@inline
 	local function channel(value: number): number
+		local result = ((value + 0.055) / 1.055) ^ 2.4
 		if value <= 0.04045 then
-			return value / 12.92
+			result = value / 12.92
 		end
-		return ((value + 0.055) / 1.055) ^ 2.4
+		return result
 	end
 	local luminance = 0.2126 * channel(fill.R) + 0.7152 * channel(fill.G) + 0.0722 * channel(fill.B)
 	if luminance > 0.18 then
@@ -125,12 +126,15 @@ end
 	@param name string -- The role size name
 ]=]
 function Theme:Height(instance: GuiObject, name: string)
+	--@inline
 	local function apply()
 		local size = instance.Size
 		instance.Size = UDim2.new(size.X.Scale, size.X.Offset, size.Y.Scale, self:Size(name))
 	end
 	apply()
-	self:Track(apply, instance)
+	self:Track(function()
+		apply()
+	end, instance)
 end
 
 function Theme:_apply(instance: Instance, bindings: Bindings)

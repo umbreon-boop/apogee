@@ -91,10 +91,11 @@ export type States = {
 function Pointer.Hover(button: GuiButton, set: (number, boolean?) -> (), states: States): () -> ()
 	--@inline
 	local function value(state: number | () -> number): number
+		local result = state
 		if type(state) == "function" then
-			return state()
+			result = state()
 		end
-		return state
+		return result
 	end
 	--@inline
 	local function blocked(): boolean

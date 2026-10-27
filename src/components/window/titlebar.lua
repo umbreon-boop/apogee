@@ -39,6 +39,7 @@ local function title(text: string?, transparency: number, key: string, size: num
 		BackgroundTransparency = 1,
 		Themed = {TextColor3 = key}
 	})
+	--@inline
 	local function fit()
 		-- the measurement can yield while a font loads
 		task.spawn(function()
@@ -46,7 +47,9 @@ local function title(text: string?, transparency: number, key: string, size: num
 		end)
 	end
 	for _, property in {"Text", "FontFace", "TextSize"} do
-		label:GetPropertyChangedSignal(property):Connect(fit)
+		label:GetPropertyChangedSignal(property):Connect(function()
+			fit()
+		end)
 	end
 	fit()
 	return label
@@ -56,6 +59,7 @@ local function styleButtonIcon(frame: Instance, window: any, name: string, highl
 	local request = {}
 	local completed = false
 	iconRequests[frame] = request
+	--@inline
 	local function apply(image: string?)
 		Theme:Style("TitleBarButton", frame, window, image, highlight, text)
 	end

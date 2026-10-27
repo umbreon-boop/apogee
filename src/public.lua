@@ -28,24 +28,24 @@ local Public = {
 	Maid = Maid.new(),
 	Containers = {}
 }
+--@inline
 local function hostShown(host: any): boolean
 	local root = host.Root
-	if root and root.Visible == false then
-		return false
+	local hidden = (root and root.Visible == false) or (host.Type == "Window" and host.Minimized)
+	local shown = true
+	if hidden then
+		shown = false
+	elseif host.Type == "Popup" then
+		shown = host.Visible == true
 	end
-	if host.Type == "Popup" then
-		return host.Visible == true
-	end
-	if host.Type == "Window" and host.Minimized then
-		return false
-	end
-	return true
+	return shown
 end
 
 function Public:HasOverlay(targetHost: any?): boolean
 	local activePopup = nil
 	for _, host in self.Containers do
-		if host.Type == "Popup" and hostShown(host) then
+		local shown = hostShown(host)
+		if host.Type == "Popup" and shown then
 			activePopup = host
 		end
 	end
@@ -225,10 +225,10 @@ function Apogee:Round(number: number, factor: number): number
 end
 
 --[=[
-	Resolves an icon name or asset id. Returns nil when it cannot be resolved.
+	Resolves an icon name from the bundled or a registered icon pack. Returns nil when it cannot be resolved.
 
-	@param name string? -- Icon name or image asset id; nil returns no asset
-	@return string? -- Resolved asset identifier, or nil when unavailable.
+	@param name string? -- Icon name; nil returns no asset
+	@return string? -- Resolved local image identifier, or nil when unavailable.
 ]=]
 function Apogee:GetIcon(name: string?): string?
 	return Icons.GetIcon(name)

@@ -59,6 +59,7 @@ local function changed(entry: any): boolean
 	end
 	return entry.free
 end
+--@inline
 local function apply(state: any, alpha: number)
 	for _, entry in state.entries do
 		if not changed(entry) then

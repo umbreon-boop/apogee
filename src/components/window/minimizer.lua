@@ -32,7 +32,7 @@ local function getInsets(parent: Instance?): (Vector2, Vector2)
 end
 
 --[=[
-	@prop Icon string -- An icon name or an asset id, hidden while a `Body` is set
+	@prop Icon string -- An icon name, hidden while a `Body` is set
 	@prop Body GuiObject? -- Custom content drawn inside the button instead of the icon
 	@prop Enabled boolean -- Whether the button shows up while the window is minimized
 	@prop Position UDim2 -- The position of the button's center

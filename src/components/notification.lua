@@ -25,7 +25,7 @@ local Measure = require("../services/measure")
 	.Content string?
 	.SubContent string?
 	.Duration number? -- Seconds until the toast closes, 5 by default
-	.Icon (string | boolean)? -- Icon name, image asset id, or false to hide
+	.Icon (string | boolean)? -- Icon name, or false to hide
 	@within Notification
 ]=]
 export type Config = {

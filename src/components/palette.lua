@@ -31,8 +31,10 @@ local GAP = 16
 -- the touch area of a track is this much wider and taller than the track
 local GRIP_EXTRA_WIDTH = 12
 local GRIP_EXTRA_HEIGHT = 16
+local FULL = UDim.new(1, 0)
 
 local isPress = Pointer.IsPress
+--@inline
 local function corner(radius: UDim?): UICorner
 	return Frame.Corner(radius or UDim.new(0, 4))
 end
@@ -51,7 +53,7 @@ local function alphaHandle(): Frame
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0
 	}, {
-		corner(UDim.new(1, 0)),
+		corner(FULL),
 		Creator:New("UIStroke", {Thickness = 2, Themed = {Color = "Surface"}})
 	})
 end
@@ -66,7 +68,7 @@ local function gradient(parent: Instance, color: ColorSequence, transparency: Nu
 		ZIndex = 2,
 		Parent = parent
 	}, {
-		corner(UDim.new(1, 0)),
+		corner(FULL),
 		Creator:New("UIGradient", {Color = color, Transparency = transparency or NumberSequence.new(0), Rotation = 90})
 	})
 end
@@ -172,7 +174,7 @@ function Palette:_build()
 		BackgroundTransparency = 0,
 		Active = true,
 		Parent = block
-	}, {corner(), self._cursor})
+	}, {corner(nil), self._cursor})
 
 	-- Hue Slider (exact original 12x190 at 210, 55)
 	self._hueDrag = alphaHandle()
@@ -183,7 +185,7 @@ function Palette:_build()
 		Active = true,
 		Parent = block
 	}, {
-		corner(UDim.new(1, 0)),
+		corner(FULL),
 		Creator:New("Frame", {
 			Size = UDim2.new(1, 0, 1, -10),
 			Position = UDim2.fromOffset(0, 5),
@@ -206,8 +208,8 @@ function Palette:_build()
 			Parent = block,
 			BackgroundTransparency = 1
 		}, {
-			corner(UDim.new(1, 0)),
-			checker({Size = UDim2.fromScale(1, 1)}, {corner(UDim.new(1, 0))}),
+			corner(FULL),
+			checker({Size = UDim2.fromScale(1, 1)}, {corner(FULL)}),
 			Creator:New("Frame", {
 				Size = UDim2.new(1, 0, 1, -10),
 				Position = UDim2.fromOffset(0, 5),

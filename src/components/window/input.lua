@@ -20,25 +20,22 @@ local isPress = Pointer.IsPress
 -- a drag follows the same finger, or the mouse while the button is held
 --@inline
 local function followsDrag(press: InputObject, input: InputObject): boolean
-	if press.UserInputType == Enum.UserInputType.Touch then
-		return input == press
-	end
-	return input.UserInputType == Enum.UserInputType.MouseMovement
+	return if press.UserInputType == Enum.UserInputType.Touch
+		then input == press
+		else input.UserInputType == Enum.UserInputType.MouseMovement
 end
 --@inline
 local function releasesDrag(press: InputObject, input: InputObject): boolean
-	if press.UserInputType == Enum.UserInputType.Touch then
-		return input == press
-	end
-	return input.UserInputType == Enum.UserInputType.MouseButton1
+	return if press.UserInputType == Enum.UserInputType.Touch
+		then input == press
+		else input.UserInputType == Enum.UserInputType.MouseButton1
 end
 -- a splitter or resize drag also follows the original pointer object on desktop
 --@inline
 local function followsPointer(press: InputObject, input: InputObject): boolean
-	if press.UserInputType == Enum.UserInputType.Touch then
-		return input == press
-	end
-	return input.UserInputType == Enum.UserInputType.MouseMovement or input == press
+	return if press.UserInputType == Enum.UserInputType.Touch
+		then input == press
+		else input.UserInputType == Enum.UserInputType.MouseMovement or input == press
 end
 
 -- starts moving the window with a press on the title bar
@@ -179,10 +176,11 @@ function WindowInput.Connect(self: any, fit: (Vector2) -> Vector2)
 
 	State.Connect(UserInputService.InputChanged, function(input)
 		local drag = self._drag
-		local dragging = drag ~= nil and followsDrag(drag.input, input)
+		local press = drag and drag.input
+		local dragging = press ~= nil and followsDrag(press, input)
 		if dragging then
 			local delta = input.Position - drag.origin
-			if delta.Magnitude > DRAG_SLIP_THRESHOLD or drag.input.UserInputType ~= Enum.UserInputType.Touch then
+			if delta.Magnitude > DRAG_SLIP_THRESHOLD or press.UserInputType ~= Enum.UserInputType.Touch then
 				if self.Maximized then
 					local activeDrag = self._drag
 					self:Maximize(false, true, true)
@@ -223,7 +221,8 @@ function WindowInput.Connect(self: any, fit: (Vector2) -> Vector2)
 
 	State.Connect(UserInputService.InputEnded, function(input)
 		local drag = self._drag
-		local released = drag ~= nil and releasesDrag(drag.input, input)
+		local press = drag and drag.input
+		local released = press ~= nil and releasesDrag(press, input)
 		if released then
 			self._drag = nil
 			if Drag._active == self and not resizing and not splitterDragging then

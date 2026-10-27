@@ -29,6 +29,7 @@ local loading = {}
 local loadCallbacks = {}
 local RunService = game:GetService("RunService")
 
+--@inline
 local function imageFolder(pack)
 	return "packs/" .. string.gsub(pack, "[^%w_-]", "_")
 end
@@ -50,6 +51,7 @@ local function download(pack)
 	return result
 end
 
+--@inline
 local function validEntry(filename)
 	return string.match(filename, "^[%w_.-]+%.png$") ~= nil
 end
@@ -202,10 +204,6 @@ function Manager.Resolve(pack, name, callback)
 	else
 		Manager.LoadAsync(pack)
 	end
-	return nil
-end
-
-function Manager.ResolveById()
 	return nil
 end
 

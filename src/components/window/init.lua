@@ -30,7 +30,7 @@ local Args = require("../../services/args")
 	@interface WindowConfig
 	.Title string -- Required initial window title; use `SetTitle` to change it.
 	.SubTitle string? -- Secondary title in the title bar.
-	.Icon string? -- An icon name or asset id displayed in the title bar
+	.Icon string? -- An icon name displayed in the title bar
 	.Size UDim2? -- Preferred offset dimensions; clamped to viewport bounds. Defaults to two thirds of the viewport.
 	.Position UDim2? -- Initial screen position; defaults to centered and is corrected to remain on screen.
 	.TabWidth number? -- Preferred sidebar width; constrained by available content width.
@@ -100,12 +100,14 @@ local TAB_SHIFT = 8
 local function splitterX(tabWidth: number): number
 	return Style.Space.XS + tabWidth + Style.Space.XS / 2
 end
+--@inline
 local function defaultViewportSize(): Vector2
 	local vp = camera.ViewportSize
 	return Vector2.new(math.floor(vp.X * 2 / 3), math.floor(vp.Y * 2 / 3))
 end
 
 -- the window never grows past the viewport, and its minimum size shrinks on screens smaller than it
+--@inline
 local function fit(size: Vector2, contentMinimum: number?): Vector2
 	local largest = (camera.ViewportSize - Vector2.new(SCREEN_MARGIN, SCREEN_MARGIN) * 2):Min(MAX_SIZE)
 	local minimumContent = math.max(MIN_CONTENT_WIDTH, contentMinimum or 0)
@@ -113,15 +115,17 @@ local function fit(size: Vector2, contentMinimum: number?): Vector2
 	local minimum = Vector2.new(minimumWidth, MIN_SIZE.Y):Min(largest)
 	return size:Max(minimum):Min(largest)
 end
-local function minimumContentWidth(window: any): number
-	local required = Resize.RequiredWidth(window)
-	local content = 0
-	if required > 0 then content = required + LAYOUT_CLEARANCE end
-	return math.max(MIN_CONTENT_WIDTH, content)
+--@inline
+local function minimumContentWidth(target: any): number
+	local needed = Resize.RequiredWidth(target)
+	local neededWidth = 0
+	if needed > 0 then neededWidth = needed + LAYOUT_CLEARANCE end
+	return math.max(MIN_CONTENT_WIDTH, neededWidth)
 end
 
 function Window:_fitResize(size: Vector2): Vector2
-	return fit(size, minimumContentWidth(self))
+	local contentMinimum = minimumContentWidth(self)
+	return fit(size, contentMinimum)
 end
 
 --[=[
@@ -133,7 +137,11 @@ end
 ]=]
 function Window.New(config: Config, parent: Instance): any
 	local preferred
-	preferred = config.Size and Vector2.new(config.Size.X.Offset, config.Size.Y.Offset) or defaultViewportSize()
+	if config.Size then
+		preferred = Vector2.new(config.Size.X.Offset, config.Size.Y.Offset)
+	else
+		preferred = defaultViewportSize()
+	end
 	local fitted = fit(preferred)
 	local size = UDim2.fromOffset(fitted.X, fitted.Y)
 	local tabLayout = Creator:New("UIListLayout", {Padding = UDim.new(0, Style.Space.XXXS)})

@@ -16,17 +16,15 @@ Drag._active = nil
 local isPress = Pointer.IsPress
 --@inline
 local function follows(active: InputObject, input: InputObject): boolean
-	if active.UserInputType == Enum.UserInputType.Touch then
-		return input == active
-	end
-	return input.UserInputType == Enum.UserInputType.MouseMovement
+	return if active.UserInputType == Enum.UserInputType.Touch
+		then input == active
+		else input.UserInputType == Enum.UserInputType.MouseMovement
 end
 --@inline
 local function releases(active: InputObject, input: InputObject): boolean
-	if active.UserInputType == Enum.UserInputType.Touch then
-		return input == active
-	end
-	return input.UserInputType == Enum.UserInputType.MouseButton1
+	return if active.UserInputType == Enum.UserInputType.Touch
+		then input == active
+		else input.UserInputType == Enum.UserInputType.MouseButton1
 end
 
 local activeTouches: { [InputObject]: boolean } = {}
@@ -98,6 +96,7 @@ function Drag.Bind(
 			stop()
 		end
 	end)
+	--@inline
 	local function dispose()
 		began:Disconnect()
 		changed:Disconnect()
@@ -107,8 +106,12 @@ function Drag.Bind(
 		end
 	end
 	-- a destroyed target never releases the shared drag lock by itself
-	target.Destroying:Connect(dispose)
-	return dispose
+	target.Destroying:Connect(function()
+		dispose()
+	end)
+	return function()
+		dispose()
+	end
 end
 
 return Drag

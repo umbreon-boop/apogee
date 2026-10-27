@@ -12,17 +12,17 @@ local Localization = {
 }
 
 local PROPERTIES = {"Text", "PlaceholderText"}
+--@inline
 local function apply(self, instance, entry, property)
 	local source = entry[property]
-	if source == nil then
-		return
-	end
-	local translated = self:Translate(source)
-	entry[property .. "Applied"] = translated
-	if (instance :: any)[property] ~= translated then
-		entry.applying = true
-		(instance :: any)[property] = translated
-		entry.applying = false
+	if source ~= nil then
+		local translated = self:Translate(source)
+		entry[property .. "Applied"] = translated
+		if (instance :: any)[property] ~= translated then
+			entry.applying = true
+			(instance :: any)[property] = translated
+			entry.applying = false
+		end
 	end
 end
 

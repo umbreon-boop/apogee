@@ -119,18 +119,18 @@ function Transitions:Maximize(value: boolean, keepPosition: boolean?, instant: b
 	self.Root.Visible = true
 	unwrap(self)
 
+	--@inline
 	local function apply()
-		if self._transitionId ~= transitionId then
-			return
+		if self._transitionId == transitionId then
+			self._rootScale.Scale = 1
+			local position
+			if goals.Position then
+				position = Vector2.new(goals.Position.X.Offset, goals.Position.Y.Offset)
+			end
+			self:_place(Vector2.new(width, height), position)
+			self.TitleBar:SetMaximized(self.Maximized)
+			updateDecorations(self)
 		end
-		self._rootScale.Scale = 1
-		local position
-		if goals.Position then
-			position = Vector2.new(goals.Position.X.Offset, goals.Position.Y.Offset)
-		end
-		self:_place(Vector2.new(width, height), position)
-		self.TitleBar:SetMaximized(self.Maximized)
-		updateDecorations(self)
 	end
 
 	if instant then

@@ -14,28 +14,22 @@ local function split(name, kind)
 	return prefix or kind or Icons.DefaultType, icon or name
 end
 
+--[=[
+	Resolves an icon name, optionally in `pack:name` form, to a local packed image.
+	@param name string? -- Icon name; nil returns no asset
+	@param kind string? -- Icon pack to use when `name` has no pack prefix
+	@param callback ((string?) -> ())? -- Receives the image after a remote pack loads
+	@return string? -- The resolved image, or nil when the name is unknown or still loading.
+]=]
 function Icons.GetIcon(name: string?, kind: string?, callback: ((string?) -> ())?): string?
 	if name == nil or name == "" then
-		return nil
-	end
-	if string.find(name, "://", 1, true) then
-		local id = string.match(name, "rbxassetid://(%d+)") or string.match(name, "[?&]id=(%d+)")
-		if id then
-			return Manager.ResolveById(id, callback)
-		end
 		return nil
 	end
 
 	local pack, icon = split(name, kind)
 	local custom = Icons.Packs[pack]
-	if custom and custom[icon] ~= nil then
-		local value = custom[icon]
-		if type(value) == "string" then
-			return value
-		end
-		if type(value) == "number" then
-			return Manager.ResolveById(value, callback)
-		end
+	if custom and type(custom[icon]) == "string" then
+		return custom[icon]
 	end
 
 	local image = Manager.Resolve(pack, icon, callback)
@@ -45,6 +39,11 @@ function Icons.GetIcon(name: string?, kind: string?, callback: ((string?) -> ())
 	return Manager.Resolve(Icons.FallbackType, icon, callback)
 end
 
+--[=[
+	Adds or replaces entries in an icon pack. Values are explicit image identifiers supplied by the pack.
+	@param pack string -- Pack name
+	@param values { [string]: string } -- Icon names and image identifiers
+]=]
 function Icons.AddPack(pack: string, values: { [string]: any })
 	assert(type(pack) == "string" and type(values) == "table", "Icons.AddPack expects a pack name and icon table")
 	local target = Icons.Packs[pack]
@@ -53,7 +52,7 @@ function Icons.AddPack(pack: string, values: { [string]: any })
 		Icons.Packs[pack] = target
 	end
 	for name, value in values do
-		if type(value) == "number" or type(value) == "string" then
+		if type(value) == "string" then
 			target[name] = value
 		else
 			warn("Icons.AddPack: unsupported value for '" .. tostring(name) .. "'")

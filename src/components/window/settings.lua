@@ -91,6 +91,7 @@ function Settings.Configs(tab: any): any
 	local name = section:Input({Title = "Config name"})
 	local list = section:Dropdown({Title = "Config list", Values = Config:List(), AllowNull = true})
 	local autoload
+	--@inline
 	local function refresh()
 		list:SetValues(Config:List())
 		list:SetValue(nil)
@@ -101,6 +102,7 @@ function Settings.Configs(tab: any): any
 		if Config:HasAutoload() then status = "set" end
 		autoload:SetDesc("Autoload config: " .. status)
 	end
+	--@inline
 	local function run(verb: string, past: string, target: string?, result: boolean, err: string?): boolean
 		if result then
 			notify(string.format("%s config %q", past, target), window)
@@ -122,7 +124,7 @@ function Settings.Configs(tab: any): any
 	section:Button({
 		Title = "Load config",
 		Callback = function()
-			run("load", "Loaded", list.Value, Config:Load(list.Value))
+			local _ = run("load", "Loaded", list.Value, Config:Load(list.Value))
 		end
 	})
 
@@ -130,9 +132,9 @@ function Settings.Configs(tab: any): any
 		Title = "Overwrite config",
 		Callback = function()
 			if list.Value then
-				run("overwrite", "Overwrote", list.Value, Config:Save(list.Value))
+				local _ = run("overwrite", "Overwrote", list.Value, Config:Save(list.Value))
 			else
-				run("overwrite", "Overwrote", nil, false, "no config is selected")
+				local _ = run("overwrite", "Overwrote", nil, false, "no config is selected")
 			end
 		end
 	})
@@ -147,7 +149,12 @@ function Settings.Configs(tab: any): any
 		end
 	})
 
-	section:Button({Title = "Refresh list", Callback = refresh})
+	section:Button({
+		Title = "Refresh list",
+		Callback = function()
+			refresh()
+		end
+	})
 
 	autoload = section:Button({
 		Title = "Set as autoload",

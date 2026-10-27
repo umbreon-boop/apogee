@@ -32,6 +32,7 @@ local function path(self, name: string): string
 end
 
 -- Config names become file names, so a separator or parent segment would escape the folder.
+--@inline
 local function invalidName(name: string?): boolean
 	return type(name) ~= "string"
 	or string.find(name, "[/\\]") ~= nil
@@ -41,14 +42,16 @@ local function invalidName(name: string?): boolean
 end
 
 -- reads the file every time: the aria Cache memory copy would still return a config that was deleted
+--@inline
 local function read(self, name: string): string?
 	-- guard with `isfile` exactly like the original config path; some executors treat a read of a missing file as an
 	-- empty string instead of raising
 	local exists, isFile = pcall(isfile, path(self, name))
-	if not exists or not isFile then
-		return nil
+	local result
+	if exists and isFile then
+		result = Path.Read(name .. ".bin", self.Path)
 	end
-	return Path.Read(name .. ".bin", self.Path)
+	return result
 end
 
 --[=[
@@ -58,11 +61,12 @@ end
 	@return boolean, string? -- Whether it succeeded and the reason when it did not
 ]=]
 function Config:Save(name: string?): (boolean, string?)
+	local invalid = invalidName(name)
 	if type(name) ~= "string" or string.gsub(name, "%s", "") == "" then
 		return false, "no config name was given"
 	elseif name == AUTOLOAD then
 		return false, "the autoload name is reserved"
-	elseif invalidName(name) then
+	elseif invalid then
 		return false, "the config name contains an invalid path"
 	end
 
@@ -96,9 +100,10 @@ end
 	@return boolean, string? -- Whether it succeeded and the reason when it did not
 ]=]
 function Config:Load(name: string?): (boolean, string?)
+	local invalid = invalidName(name)
 	if type(name) ~= "string" then
 		return false, "no config is selected"
-	elseif invalidName(name) then
+	elseif invalid then
 		return false, "the config name contains an invalid path"
 	end
 	local encoded = read(self, name)
@@ -128,7 +133,8 @@ end
 	@return boolean, string? -- Whether it succeeded and the reason when it did not
 ]=]
 function Config:Delete(name: string?): (boolean, string?)
-	if not name or invalidName(name) then
+	local invalid = invalidName(name)
+	if not name or invalid then
 		return false, "the config does not exist"
 	end
 	local exists, isFile = pcall(isfile, path(self, name))
@@ -185,7 +191,8 @@ function Config:SetAutoload(name: string?): (boolean, string?)
 		end
 		return true
 	end
-	if invalidName(name) then
+	local invalid = invalidName(name)
+	if invalid then
 		return false, "the config name contains an invalid path"
 	end
 	local encoded = read(self, name)
