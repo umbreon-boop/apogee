@@ -31,7 +31,10 @@ function Localization:Translate(text: any): any
 		return text
 	end
 	local locale = self.Translations[self.Locale]
-	return if locale and locale[text] ~= nil then locale[text] else text
+	if locale and locale[text] ~= nil then
+		return locale[text]
+	end
+	return text
 end
 
 function Localization:SetLocale(locale: string, translations: {[string]: string}?)

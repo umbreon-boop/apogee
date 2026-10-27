@@ -1,5 +1,5 @@
 --[=[
-	Toast notifications that slide in from the bottom right corner of the screen,
+	Toast notifications that fade in at the bottom right corner of the screen,
 	featuring a clean custom icon, title, content, and squircle card styling.
 
 	@class Notification
@@ -15,6 +15,7 @@ local Squircle = require("./frame")
 local Style = require("../assets/themes")
 local Theme = require("../services/theme")
 local Creator = require("../services/creator")
+local Fade = require("../services/fade")
 local Maid = require("@aria/maid")
 local Measure = require("../services/measure")
 
@@ -45,9 +46,6 @@ local CLOSE_CENTER_TOP = 42 / 2
 local FIXED_HEIGHT = 58
 local MIN_WIDTH = 200
 local MAX_WIDTH = 450
-local TRANSITION_DURATION = 0.2
-local TRANSITION_EASING = Enum.EasingStyle.Quint
-local TRANSITION_DIRECTION = Enum.EasingDirection.Out
 --@inline
 local function label(text: string, size: number, weight: Enum.FontWeight, key: string): TextLabel
 	return Creator:New("TextLabel", {
@@ -101,19 +99,16 @@ function Notification.New(config: Config, window: any?): any
 
 	-- Custom Icon
 	local iconName = config.Icon
-	local iconAsset: string? = nil
 	if iconName ~= false then
-		if type(iconName) == "string" and iconName ~= "" then
-			iconAsset = Icons.GetIcon(iconName)
-		else
-			iconAsset = Icons.GetIcon("bell")
+		if type(iconName) ~= "string" or iconName == "" then
+			iconName = "bell"
 		end
 	end
 
 	-- the left edge of the text, after the icon when the icon shows
 	local iconLeft = PAD + ICON_SIZE + 10
 	local textLeft = PAD
-	self.Icon = Icon.New(iconAsset, {
+	self.Icon = Icon.New(iconName, {
 		Size = UDim2.fromOffset(ICON_SIZE, ICON_SIZE),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0, math.floor(iconLeft / 2), 0.5, 0),
@@ -154,7 +149,6 @@ function Notification.New(config: Config, window: any?): any
 	})
 	local closeIcon = Creator:New("ImageLabel", {
 		Name = "CloseIcon",
-		Image = Icons.GetIcon("x"),
 		Size = UDim2.fromOffset(14, 14),
 		Position = UDim2.fromScale(0.5, 0.5),
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -162,6 +156,14 @@ function Notification.New(config: Config, window: any?): any
 		ZIndex = 2,
 		Themed = {ImageColor3 = "SubText"}
 	})
+	local closeImage = Icons.GetIcon("x", nil, function(image)
+		if closeIcon.Parent then
+			closeIcon.Image = image or ""
+		end
+	end)
+	if closeImage then
+		closeIcon.Image = closeImage
+	end
 	self.CloseButton = Creator:New("TextButton", {
 		Text = "",
 		Position = UDim2.new(1, -CLOSE_CENTER_RIGHT, 0, CLOSE_CENTER_TOP),
@@ -175,16 +177,19 @@ function Notification.New(config: Config, window: any?): any
 	local _, closeFade = Motion.Bind(1, closeHover, "ImageTransparency", true)
 	Pointer.Hover(self.CloseButton, closeFade, {Rest = 1, Hover = 0.85, Press = 0.7})
 
-	-- No window drop shadow: its square corners peek out past the small rounded toast
-	local surface = Backdrop.New(Style.Squircle.Container, false)
+	-- No drop shadow: its square bounds would peek out past the rounded toast
+	local surface = Backdrop.New(Style.Squircle.Container)
 	Theme:Override(surface.Background, {ImageColor3 = "Overlay"})
-	surface.Background.ImageTransparency = if window then window.Transparency or 0 else 0
+	surface.Background.ImageTransparency = 0
+	if window then
+		surface.Background.ImageTransparency = window.Transparency or 0
+	end
 
 	self.Root = Creator:New("Frame", {
 		BackgroundTransparency = 1,
 		Active = true,
 		Size = UDim2.fromScale(1, 1),
-		Position = UDim2.new(1, 60, 0, 0),
+		Position = UDim2.fromScale(0, 0),
 		ClipsDescendants = true
 	}, {surface, self.Icon, self.CloseButton, self.LabelHolder})
 
@@ -216,7 +221,8 @@ function Notification.New(config: Config, window: any?): any
 	end
 	-- a theme without icons moves the text to the left edge
 	Icon.Watch(self.Icon, function(shown)
-		textLeft = if shown then iconLeft else PAD
+		textLeft = PAD
+		if shown then textLeft = iconLeft end
 		self.LabelHolder.Size = UDim2.new(1, -(textLeft + PAD + CLOSE_SIZE + 6), 0, 0)
 		self.LabelHolder.Position = UDim2.new(0, textLeft, 0.5, 0)
 		updateSize()
@@ -238,11 +244,11 @@ end
 	Animates the notification into view.
 ]=]
 function Notification:Open()
-	Motion.Tween(self.Root, {Position = UDim2.fromScale(0, 0)}, TRANSITION_DURATION, TRANSITION_EASING, TRANSITION_DIRECTION)
+	Fade.To(self.Root, true, Fade.Duration)
 end
 
 --[=[
-	Slides the notification out and destroys it.
+	Fades the notification out and destroys it.
 ]=]
 function Notification:Close()
 	if self.Closed then
@@ -254,10 +260,7 @@ function Notification:Close()
 		pcall(task.cancel, self._timer)
 		self._timer = nil
 	end
-	Motion.Tween(self.Root, {Position = UDim2.new(1, 60, 0, 0)}, TRANSITION_DURATION, TRANSITION_EASING, TRANSITION_DIRECTION, function(state)
-		if state ~= Enum.PlaybackState.Completed then
-			return
-		end
+	Fade.To(self.Root, false, Fade.Duration, function()
 		self:Destroy()
 	end)
 end

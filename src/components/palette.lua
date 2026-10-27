@@ -119,9 +119,12 @@ function Palette.New(picker: any, window: any, title: string, alpha: boolean, sc
 		_alpha = alpha,
 		_picker = picker,
 		_window = window,
-		_scrollFrame = scrollFrame or (if window and window.ScrollFrame then window.ScrollFrame else nil),
+		_scrollFrame = scrollFrame,
 		_fields = {}
 	}, Palette)
+	if not self._scrollFrame and window then
+		self._scrollFrame = window.ScrollFrame
+	end
 	self._title = title
 	return self
 end
@@ -140,7 +143,8 @@ function Palette:_build()
 	self._barrier = dialog.TintFrame
 
 	local root = dialog.Root
-	local column = if self._alpha then 260 else 240
+	local column = 240
+	if self._alpha then column = 260 end
 
 	local card = dialog.Root.Size
 	local scale = math.min(1, (card.X.Offset - BLOCK_X) / BLOCK_W, (card.Y.Offset - BLOCK_Y - TRAY_HEIGHT - GAP) / BLOCK_H)
@@ -342,7 +346,7 @@ end
 
 function Palette:_connect()
 	local fields = self._fields
-local function commitHex()
+	local function commitHex()
 		local text = string.gsub(fields.Hex.Text, "[#%s]", "")
 		local success, color = pcall(Color3.fromHex, text)
 		if success and typeof(color) == "Color3" then
@@ -403,10 +407,10 @@ local function commitHex()
 		end)
 
 		Drag.Bind(grip(self._alphaSlider), function(position)
-				local slider = self._alphaSlider
-				self.Transparency = fraction(position.Y, slider.AbsolutePosition.Y, slider.AbsoluteSize.Y)
-				self:Display()
-			end, self._scrollFrame)
+			local slider = self._alphaSlider
+			self.Transparency = fraction(position.Y, slider.AbsolutePosition.Y, slider.AbsoluteSize.Y)
+			self:Display()
+		end, self._scrollFrame)
 	end
 
 	Drag.Bind(self._map, function(position)
@@ -417,10 +421,10 @@ local function commitHex()
 	end, self._scrollFrame)
 
 	Drag.Bind(grip(self._hueSlider), function(position)
-			local slider = self._hueSlider
-			self.Hue = fraction(position.Y, slider.AbsolutePosition.Y, slider.AbsoluteSize.Y)
-			self:Display()
-		end, self._scrollFrame)
+		local slider = self._hueSlider
+		self.Hue = fraction(position.Y, slider.AbsolutePosition.Y, slider.AbsoluteSize.Y)
+		self:Display()
+	end, self._scrollFrame)
 end
 
 function Palette:Display()

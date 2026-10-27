@@ -22,10 +22,16 @@ local function readable(theme: any, key: string): Color3
 	-- relative luminance, so mid tones like the indigo accent pick the right side
 	--@inline
 	local function channel(value: number): number
-		return if value <= 0.04045 then value / 12.92 else ((value + 0.055) / 1.055) ^ 2.4
+		if value <= 0.04045 then
+			return value / 12.92
+		end
+		return ((value + 0.055) / 1.055) ^ 2.4
 	end
 	local luminance = 0.2126 * channel(fill.R) + 0.7152 * channel(fill.G) + 0.0722 * channel(fill.B)
-	return if luminance > 0.18 then Color3.fromRGB(20, 20, 20) else Color3.new(1, 1, 1)
+	if luminance > 0.18 then
+		return Color3.fromRGB(20, 20, 20)
+	end
+	return Color3.new(1, 1, 1)
 end
 
 -- keys computed from other keys so they follow any custom theme
@@ -54,7 +60,7 @@ end
 --@inline
 local function applyFont(instance: any, family: string)
 	local face = instance.FontFace
-	instance.FontFace = if face then Font.new(family, face.Weight, face.Style) else Font.new(family)
+	instance.FontFace = face and Font.new(family, face.Weight, face.Style) or Font.new(family)
 end
 
 function Theme:_fontFamily(): string
@@ -83,7 +89,10 @@ export type Bindings = { [string]: string }
 ]=]
 function Theme:Get(key: string): any
 	local currentPalette = self.Themes[self.Current]
-	local value = if currentPalette then currentPalette[key] else nil
+	local value
+	if currentPalette then
+		value = currentPalette[key]
+	end
 	if value ~= nil then
 		return value
 	end
@@ -91,7 +100,10 @@ function Theme:Get(key: string): any
 		return DERIVED[key](self)
 	end
 	local defaultPalette = Themes[Themes.Default]
-	return if defaultPalette then defaultPalette[key] else nil
+	if defaultPalette then
+		return defaultPalette[key]
+	end
+	return nil
 end
 
 --[=[

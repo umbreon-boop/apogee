@@ -19,7 +19,7 @@ return function(t)
 	local group = win.Tabs[1]:Section({Title = "Grouped"})
 	local rowA = group:Toggle({Title = "A", Value = true})
 	local rowB = group:Button({Title = "B"})
-	check(group.Panel.Image == "rbxassetid://80999662900595", "sections are squircle panels")
+	check(group.Panel.Image == Apogee.internals.assets.images.Squircle, "sections are squircle panels")
 	check(rowA._element.Background.ImageTransparency == 1 and not rowA._element.Border.Visible, "rows in a section are flat")
 	check(not rowA.Frame.Divider.Visible and rowB.Frame.Divider.Visible, "dividers separate rows after the first")
 	rowB.Frame.MouseEnter:Fire()
@@ -33,7 +33,7 @@ return function(t)
 	check(rowB._element.Background.ImageTransparency > 0.99, "rows stay flat across theme changes")
 
 	local card = toggle._element
-	check(card.Background.Image == "rbxassetid://80999662900595", "standalone cards are squircles")
+	check(card.Background.Image == Apogee.internals.assets.images.Squircle, "standalone cards are squircles")
 	check(win.Tabs[1]._highlight.ImageColor3 == accent(), "the selected tab is tinted with the accent")
 
 	local close = win.TitleBar.CloseButton
@@ -66,6 +66,15 @@ return function(t)
 	-- a theme that squares the corners and does not restore them.
 	local Images = Apogee.internals.assets.images
 	local SQUIRCLES = {[Images.Squircle] = true, [Images.SquircleOutline] = true, [Images.SquircleTop] = true, [Images.SquircleBottom] = true}
+
+	local function hasShadow(instance)
+		for _, child in instance:GetChildren() do
+			if child.Name == "Shadow" or hasShadow(child) then
+				return true
+			end
+		end
+		return false
+	end
 
 	local function corners(root)
 		local square, round = 0, 0
@@ -102,6 +111,19 @@ return function(t)
 	end
 
 	check(corners(Apogee.GUI) == 0, "every squircle and rounded corner is round on the default theme")
+	check(not hasShadow(win.Root), "the window draws no drop shadow")
+	check(win.Backdrop.Background:IsA("ImageLabel") and win.Backdrop.Background.Image == Images.Squircle,
+		"the window background is a rounded squircle surface")
+	local windowBody = win.Backdrop:FindFirstChild("Body")
+	check(windowBody ~= nil and windowBody.BackgroundTransparency == 0
+		and windowBody:FindFirstChildOfClass("UICorner") ~= nil,
+		"the window surface has an opaque rounded body")
+	local plainToast = Apogee:Notify({Title = "Plain", Content = "no shadow", Duration = 0.1})
+	check(not hasShadow(plainToast.Root), "notifications draw no drop shadow past their rounded corners")
+	plainToast:Close()
+	local plainPopup = Apogee:Popup({Title = "Plain popup"})
+	check(not hasShadow(plainPopup.Root), "popups draw no drop shadow past their rounded corners")
+	plainPopup:Destroy()
 
 	local closing = Apogee:Window({Title = "Closing", Minimizer = false})
 	closing.TitleBar.CloseButton.MouseButton1Click:Fire()
@@ -118,7 +140,9 @@ return function(t)
 			tween.Play = function()
 				tweens += 1
 				-- a rectangular clip cuts the content with straight edges over the round corners
-				square += corners(root) + (if root.BackgroundTransparency ~= 1 or root.ClipsDescendants == true then 1 else 0)
+				local clipped = 0
+				if root.BackgroundTransparency ~= 1 or root.ClipsDescendants == true then clipped = 1 end
+				square += corners(root) + clipped
 				play()
 			end
 			return tween
@@ -133,20 +157,32 @@ return function(t)
 	check(roundWhileAnimating(closing.Root, function()
 		buttons(closeDialog)[1].MouseButton1Click:Fire()
 	end), "the window corners stay round during the close animation")
-	check(closing._closing and closing._rootScale.Scale == 1 and closing.Root.Position == closingAt + roblox.UDim2.fromOffset(0, 8),
-		"the close button plays the close animation: a fade and a slide down, no scale")
+	check(closing._closing and closing._rootScale.Scale == 1 and closing.Root.Position == closingAt,
+		"the close button plays the close animation: a fade, no slide and no scale")
 	check(corners(closing.Root) == 0, "the window corners stay round at the end of the close animation")
 	task.wait(0.1)
 	check(closing._destroyed and Apogee.Current == win, "the close animation destroys only the closed window")
 
-	for _, step in {
-		{"minimize", function() win:Minimize() end},
-		{"restore", function() win:Minimize() end},
-		{"maximize", function() win:Maximize(true) end},
-		{"unmaximize", function() win:Maximize(false) end}
-	} do
-		check(roundWhileAnimating(win.Root, step[2]), "the window corners stay round during the " .. step[1] .. " animation")
-	end
+	check(roundWhileAnimating(win.Root, function()
+		win:Minimize()
+	end), "the window corners stay round during the minimize animation")
+	check(roundWhileAnimating(win.Root, function()
+		win:Minimize()
+	end), "the window corners stay round during the restore animation")
+	win:Maximize(true)
+	local fullscreenSurface = win.Backdrop:FindFirstChild("Background")
+	check(fullscreenSurface ~= nil and fullscreenSurface.Visible ~= false and win.Backdrop:FindFirstChild("Full") == nil,
+		"a fullscreen window keeps the same rounded surface as normal mode")
+	check(not hasShadow(win.Root), "a fullscreen window draws no drop shadow")
+	check(windowBody.BackgroundTransparency == 0 and fullscreenSurface.ImageTransparency == 0,
+		"a fullscreen window keeps the same opaque surface as normal mode")
+	check(corners(win.Root) == 0, "a fullscreen window keeps its round corners")
+	win:Maximize(false)
+	local restoredSurface = win.Backdrop:FindFirstChild("Background")
+	check(restoredSurface ~= nil and restoredSurface.Visible ~= false, "unmaximizing restores the rounded surface")
+	check(not hasShadow(win.Root), "unmaximizing keeps the window free of drop shadows")
+	check(windowBody.BackgroundTransparency == 0 and restoredSurface.ImageTransparency == 0,
+		"unmaximizing restores the same opaque surface")
 	check(not win.Minimized and not win.Maximized, "the window is back to its normal state after the animation checks")
 
 	Apogee:SetTheme("ImGui")
@@ -199,13 +235,17 @@ return function(t)
 		end
 		return nil
 	end
-	check(liveToggle.Value == toggleValue and checkmark().TextTransparency == (if toggleValue then 0 else 1), "the new toggle look shows the kept value")
+	local function checkmarkTransparency(value)
+		if value then return 0 end
+		return 1
+	end
+	check(liveToggle.Value == toggleValue and checkmark().TextTransparency == checkmarkTransparency(toggleValue), "the new toggle look shows the kept value")
 	local toggled = {}
 	liveToggle.Callback = function(value)
 		table.insert(toggled, value)
 	end
 	liveToggle.Frame.MouseButton1Click:Fire()
-	check(liveToggle.Value == not toggleValue and toggled[1] == liveToggle.Value and checkmark().TextTransparency == (if liveToggle.Value then 0 else 1), "a click on the restyled toggle flips it, fires its callback and shows the value")
+	check(liveToggle.Value == not toggleValue and toggled[1] == liveToggle.Value and checkmark().TextTransparency == checkmarkTransparency(liveToggle.Value), "a click on the restyled toggle flips it, fires its callback and shows the value")
 	liveToggle:SetValue(toggleValue)
 
 	check(liveSlider.Value == sliderValue and imguiSlider ~= cosmicSlider, "the theme change replaces the slider look and keeps its value")
@@ -227,19 +267,19 @@ return function(t)
 	Apogee:SetTheme("Dark")
 	local backToggle = ThemeService:Look(liveToggle.Frame)
 	check(backToggle.Knob ~= nil and backToggle.Knob.BackgroundColor3 == roblox.Color3.new(1, 1, 1) and checkmark() == nil, "switching back gives the toggle its default look")
-	check(backToggle.Fill.BackgroundTransparency == (if toggleValue then 0 else 1), "the default toggle look shows the value at once")
+	check(backToggle.Fill.BackgroundTransparency == checkmarkTransparency(toggleValue), "the default toggle look shows the value at once")
 	check(win.TitleBar.MaxButton:FindFirstChild("Icon") ~= nil and win.TitleBar.CloseButton:FindFirstChildOfClass("TextLabel") == nil, "switching back gives the title bar its default buttons")
 	check(#win._elements == elementCount and Apogee.Theme == "Dark", "the round trip leaves no stale highlight resets and Apogee.Theme follows the theme")
 	liveToggle:SetValue(originalToggle)
 
 	-- selection highlights and outlines ------------------------------------------
 	check(win._selector == nil, "the window has no tab selector bar")
-	check(win.Tabs[1]._highlight.Image == "rbxassetid://80999662900595", "tab selection highlight is a rounded square")
+	check(win.Tabs[1]._highlight.Image == Apogee.internals.assets.images.Squircle, "tab selection highlight is a rounded square")
 	check(dropdown._options[1].Selector == nil, "dropdown options have no selector bar")
-	check(dropdown._options[1].Highlight.Image == "rbxassetid://80999662900595", "dropdown option selection highlight is a rounded square")
+	check(dropdown._options[1].Highlight.Image == Apogee.internals.assets.images.Squircle, "dropdown option selection highlight is a rounded square")
 
 	for _, child in win.Backdrop:GetChildren() do
-		if child:IsA("ImageLabel") and child.Image == "rbxassetid://117817408534198" then
+		if child:IsA("ImageLabel") and child.Image == Images.SquircleOutline then
 			check(not child.Visible, "backdrop outline is removed")
 		end
 	end

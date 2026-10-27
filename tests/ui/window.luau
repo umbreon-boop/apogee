@@ -57,7 +57,7 @@ return function(t)
 	win:Minimize()
 	check(minimizer.Frame.Visible, "the minimizer shows once the window is minimized")
 	check(win.Root.Size == windowSizeBeforeMinimize and win._rootScale.Scale == 1,
-		"minimize fades and slides without resizing or scaling the window contents")
+		"minimize fades without resizing or scaling the window contents")
 	minimizer:_moveTo(roblox.Vector2.new(100, 0))
 	check(minimizer.Position.Y.Offset == minimizer._size / 2 - 36, "the minimizer reaches the viewport's top edge")
 	local tap = pointer("Touch", 40, 500)
@@ -71,11 +71,33 @@ return function(t)
 	check(not win.Minimized and not minimizer.Frame.Visible, "a tap restores the window and hides the minimizer")
 	check(win.Root.Size == windowSizeBeforeMinimize and win.Root.Position == windowPositionBeforeMinimize and win._rootScale.Scale == 1, "restore animation returns the window to its saved geometry")
 	win:Maximize(true)
-	check(win.Maximized and win.Root.Size == win.Size and win.Root.Position == roblox.UDim2.fromOffset(0, 0), "maximize animation fills the viewport")
+	check(win.Maximized and win.Root.Size == win.Size and win.Root.Position == roblox.UDim2.fromOffset(16, 16), "maximize animation fills the screen")
+	check(win.Root.Size == roblox.UDim2.fromOffset(1888, 1012), "fullscreen uses the drawable screen area with the window margin")
+	check(win.Root:FindFirstChild("Shadow") == nil and win.Backdrop:FindFirstChild("Shadow") == nil,
+		"fullscreen keeps the rounded surface with no square shadow box")
+	check(win.Backdrop.Body ~= nil and win.Backdrop.Body.BackgroundTransparency == 0,
+		"fullscreen keeps an opaque window surface")
 	check(win.TabWidth == prevTabW and win._tabFrame.Size.X.Offset == prevTabW, "tab width is preserved during maximization")
 	win:Maximize(false)
 	check(not win.Maximized and win.Root.Size == windowSizeBeforeMinimize, "unmaximize animation restores the previous size")
+	check(win.Root:FindFirstChild("Shadow") == nil and win.Backdrop:FindFirstChild("Shadow") == nil,
+		"unmaximizing keeps the rounded surface without a square shadow box")
 	check(win.TabWidth == prevTabW and win._tabFrame.Size.X.Offset == prevTabW, "tab width is preserved after restoring from maximize")
+
+	-- a screen GUI that ignores the inset starts at the screen top; the maximized window must stay below the topbar
+	Apogee.GUI.IgnoreGuiInset = true
+	win:Maximize(true)
+	check(win.Root.Position == roblox.UDim2.fromOffset(16, 52) and win.Root.Size == roblox.UDim2.fromOffset(1888, 1012),
+		"a maximized window that ignores the GUI inset stays below the topbar")
+	win:Maximize(false)
+	Apogee.GUI.IgnoreGuiInset = false
+
+	win:Maximize(true)
+	local maximizedPosition = win.Root.Position
+	win:Minimize()
+	win:Minimize()
+	check(win.Root.Position == maximizedPosition, "restoring a minimized maximized window keeps the maximized position")
+	win:Maximize(false)
 
 	-- multiple windows ------------------------------------------------------------
 	local second = Apogee:Window({Title = "Second", SubTitle = ""})

@@ -92,7 +92,10 @@ local function stepSpring(self, state, delta)
 	end
 
 	local complete = math.abs(speed) < VELOCITY_THRESHOLD and math.abs(position - goal) < POSITION_THRESHOLD
-	return {complete = complete, value = if complete then goal else position, velocity = speed}
+	if complete then
+		position = goal
+	end
+	return {complete = complete, value = position, velocity = speed}
 end
 local function stepInstant(self)
 	return {complete = true, value = self._target}
@@ -236,16 +239,19 @@ end
 	@return Tween -- The playing tween, which can be inspected or cancelled by the caller.
 ]=]
 function Motion.Tween(
-		instance: Instance,
-		properties: { [string]: any },
-		duration: (number | TweenInfo)?,
-		easingStyle: Enum.EasingStyle?,
-		easingDirection: Enum.EasingDirection?,
-		completed: ((Enum.PlaybackState) -> ())?
-	): Tween
-	local info = if typeof(duration) == "TweenInfo"
-		then duration :: TweenInfo
-	else TweenInfo.new((duration :: number?) or 0.2, easingStyle or Enum.EasingStyle.Quint, easingDirection or Enum.EasingDirection.Out)
+	instance: Instance,
+	properties: { [string]: any },
+	duration: (number | TweenInfo)?,
+	easingStyle: Enum.EasingStyle?,
+	easingDirection: Enum.EasingDirection?,
+	completed: ((Enum.PlaybackState) -> ())?
+): Tween
+	local info
+	if typeof(duration) == "TweenInfo" then
+		info = duration :: TweenInfo
+	else
+		info = TweenInfo.new((duration :: number?) or 0.2, easingStyle or Enum.EasingStyle.Quint, easingDirection or Enum.EasingDirection.Out)
+	end
 	local tween = TweenService:Create(instance, info, properties)
 	if completed then
 		tween.Completed:Connect(completed)
@@ -266,12 +272,12 @@ end
 	@return Motor, (value: number, ignore: boolean?) -> () -- The motor and a setter that updates the bound property.
 ]=]
 function Motion.Bind(
-		initial: number,
-		instance: Instance,
-		property: string,
-		ignoreDialog: boolean?,
-		targetHost: any?
-	): (Motor, (value: number, ignore: boolean?) -> ())
+	initial: number,
+	instance: Instance,
+	property: string,
+	ignoreDialog: boolean?,
+	targetHost: any?
+): (Motor, (value: number, ignore: boolean?) -> ())
 	local motor = Motion.Single(initial, function(value)
 		(instance :: any)[property] = value
 	end)

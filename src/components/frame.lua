@@ -63,9 +63,13 @@ end
 	@return ImageLabel | ImageButton -- The created image label, or image button when `Button` is true.
 ]=]
 function Frame.New(radius: number, props: { [string]: any }?, children: { Instance }?): any
-	local settings = if props then table.clone(props) else {}
+	local settings = {}
+	if props then
+		settings = table.clone(props)
+	end
 	local shape = settings.Shape or "Full"
-	local class = if settings.Button then "ImageButton" else "ImageLabel"
+	local class = "ImageLabel"
+	if settings.Button then class = "ImageButton" end
 	settings.Shape = nil
 	settings.Button = nil
 

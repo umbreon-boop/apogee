@@ -16,15 +16,17 @@ Drag._active = nil
 local isPress = Pointer.IsPress
 --@inline
 local function follows(active: InputObject, input: InputObject): boolean
-	return if active.UserInputType == Enum.UserInputType.Touch
-		then input == active
-	else input.UserInputType == Enum.UserInputType.MouseMovement
+	if active.UserInputType == Enum.UserInputType.Touch then
+		return input == active
+	end
+	return input.UserInputType == Enum.UserInputType.MouseMovement
 end
 --@inline
 local function releases(active: InputObject, input: InputObject): boolean
-	return if active.UserInputType == Enum.UserInputType.Touch
-		then input == active
-	else input.UserInputType == Enum.UserInputType.MouseButton1
+	if active.UserInputType == Enum.UserInputType.Touch then
+		return input == active
+	end
+	return input.UserInputType == Enum.UserInputType.MouseButton1
 end
 
 local activeTouches: { [InputObject]: boolean } = {}
@@ -39,11 +41,11 @@ local activeTouches: { [InputObject]: boolean } = {}
 	@return () -> () -- Stops the dragging and disconnects it, which also happens when the target is destroyed
 ]=]
 function Drag.Bind(
-		target: GuiObject,
-		handler: (position: Vector2) -> (),
-		scroll: ScrollingFrame?,
-		finished: (() -> ())?
-	): () -> ()
+	target: GuiObject,
+	handler: (position: Vector2) -> (),
+	scroll: ScrollingFrame?,
+	finished: (() -> ())?
+): () -> ()
 	local active: InputObject? = nil
 	target.Active = true
 	--@inline

@@ -185,19 +185,49 @@ return function(t)
 		config:SetAutoload(nil)
 		config:Delete("real")
 
-		-- icons pass any asset id through
-		check(Apogee:GetIcon("rbxthumb://type=Asset&id=1") == "rbxthumb://type=Asset&id=1", "GetIcon passes any asset id with :// through")
+		-- unresolved icons never fall back to Roblox asset delivery
+		check(Apogee:GetIcon("rbxthumb://type=Asset&id=1") == nil, "unpacked URLs do not bypass the asset manager")
 		local icons = Apogee.internals.assets.icons
-		check(icons.Packs.solar == nil, "the Solar icon pack is not bundled")
-		check(Apogee:GetIcon("house") == "rbxassetid://98755624629571", "built-in numeric icon IDs get their asset prefix at runtime")
-		check(Apogee:GetIcon("settings") == "rbxassetid://80758916183665", "the full Lucide icon map remains available")
-		check(Apogee:GetIcon("sfsymbols:house") == "rbxassetid://112295202788379", "SF Symbols remain available as a local pack")
-		check(Apogee:GetIcon("gravity:house") == "rbxassetid://84017953453024", "Gravity icons remain available as a local pack")
-		check(icons.Packs.craft.Spritesheets["1"] == 70631241282259 and icons.Packs.geist.Spritesheets["1"] == 133454478968909
-			and type(icons.Packs.craft.Icons["2d-axis-stroke"]) == "table" and type(icons.Packs.geist.Icons) == "table",
-			"Craft and Geist atlases retain their icon data and numeric sheet IDs")
+		local assetManager = Apogee.internals.assets.manager
+		check(icons.DefaultType == "core", "the embedded core icon pack is the default")
+		local localImage = function(value)
+			return type(value) == "string" and string.sub(value, 1, 13) == "localasset://"
+		end
+		check(assetManager.Repository == "https://github.com/umbreon-boop/packs/releases/latest/download/"
+			and localImage(assetManager.Resolve("core", "Shadow")) and localImage(Apogee:GetIcon("bell")),
+			"core assets resolve to local packed images")
+		local packs = {
+			"lucide",
+			"sfsymbols",
+			"gravity",
+			"feather",
+			"heroicons-outline",
+			"heroicons-solid",
+			"material-design",
+			"tabler-outline",
+			"tabler-filled"
+		}
+		local waiting = #packs
+		local function loaded()
+			waiting -= 1
+		end
+		for _, pack in ipairs(packs) do
+			assetManager.LoadAsync(pack, loaded)
+		end
+		while waiting > 0 do
+			task.wait()
+		end
+		check(localImage(Apogee:GetIcon("house")) and localImage(Apogee:GetIcon("orbit"))
+			and localImage(Apogee:GetIcon("sfsymbols:house")) and localImage(Apogee:GetIcon("gravity:house"))
+			and localImage(Apogee:GetIcon("feather:home"))
+			and localImage(Apogee:GetIcon("heroicons-outline:home"))
+			and localImage(Apogee:GetIcon("heroicons-solid:home"))
+			and localImage(Apogee:GetIcon("material-design:home"))
+			and localImage(Apogee:GetIcon("tabler-outline:home"))
+			and localImage(Apogee:GetIcon("tabler-filled:home")),
+			"icon names resolve to local packed images")
 		icons.AddPack("regression", {numeric = 12345})
-		check(Apogee:GetIcon("regression:numeric") == "rbxassetid://12345", "custom numeric icon IDs get their asset prefix at runtime")
+		check(Apogee:GetIcon("regression:numeric") == nil, "custom icon packs do not use rbxasset fallbacks")
 		icons.Packs.regression = nil
 
 		-- dialogs: the overlay is above the window chrome, a click during the close runs nothing, and no canvas group stays
@@ -468,7 +498,7 @@ return function(t)
 		win:SetTabWidth(preferred)
 		check(win.Splitter.Size.X.Offset > Apogee.internals.assets.themes.Space.XS, "the splitter hit area is wider than the gap it sits in")
 
-		-- Minimize and restore never scale or resize window contents; they only fade and slide the unchanged layout.
+		-- Minimize and restore never scale or resize window contents; they only fade the unchanged layout.
 		local minimizer2 = win.Minimizer
 		minimizer2.Enabled = true
 		local scaleTweens, sizeTweens
@@ -487,12 +517,12 @@ return function(t)
 		check(scaleTweens == 0 and sizeTweens == 0 and win.Root.Size == sizeBeforeMinimize,
 			"minimize does not scale or resize any window elements")
 		minimizer2:_moveTo(roblox.Vector2.new(500, 300))
-		local restoreStart
+		local positionTweens = 0
 		services.TweenService.Create = function(service, instance, info, properties)
 			if instance == win._rootScale then
 				scaleTweens += 1
-			elseif instance == win.Root and properties.Position and not restoreStart then
-				restoreStart = win.Root.Position
+			elseif instance == win.Root and properties.Position then
+				positionTweens += 1
 			end
 			return create(service, instance, info, properties)
 		end
@@ -500,10 +530,9 @@ return function(t)
 		win:Minimize()
 		services.TweenService.Create = create
 		minimizer2.Enabled = false
-		check(scaleTweens == 0 and sizeTweens == 0 and win._rootScale.Scale == 1,
+		check(scaleTweens == 0 and sizeTweens == 0 and positionTweens == 0 and win._rootScale.Scale == 1,
 			"restore does not scale or resize any window elements")
-		check(restoreStart == win.Position + roblox.UDim2.fromOffset(0, 8) and win.Root.Position == win.Position,
-			"a restore slides the window in at its own place")
+		check(win.Root.Position == win.Position, "a restore keeps the window at its own place")
 
 		-- Under a UIScale the text draws at a whole font size rounded down. Layout that follows the rendered text, and
 		-- any animation that grows to scale 1, changes when the animation ends, so the interface jumped.
@@ -538,22 +567,23 @@ return function(t)
 
 		local slideDialog = win:Dialog({Title = "Slide", Content = "no scale", Buttons = {{Title = "OK"}}})
 		check(slideDialog.Root:FindFirstChildOfClass("UIScale") == nil, "a dialog does not scale")
-		check(slideDialog.Root.Position == slideDialog:_position(0), "a dialog slides into the center of the window")
+		check(slideDialog.Root.Position == slideDialog:_position(0), "a dialog opens at the center of the window")
 		slideDialog:Destroy()
 
 		local slidePopup = Apogee:Popup({Title = "Slide"})
 		check(slidePopup.Root:FindFirstChildOfClass("UIScale") == nil and slidePopup.Root.Position == slidePopup.Position,
 			"a popup opens without scale at its own position")
 		slidePopup.Visible = false
-		check(slidePopup.Root.Position == slidePopup.Position + roblox.UDim2.fromOffset(0, 8), "a hidden popup slides down")
+		check(slidePopup.Root.Position == slidePopup.Position, "a hidden popup stays at its position")
 		slidePopup:Open()
 		check(slidePopup.Root.Position == slidePopup.Position, "a popup opens again without an error")
 		slidePopup:Destroy()
 
 		single:Open()
-		check(single._canvas:FindFirstChildOfClass("UIScale") == nil and single._shift.Value == 0, "a dropdown list opens without scale")
+		local openPosition = single._canvas.Position
+		check(single._canvas:FindFirstChildOfClass("UIScale") == nil, "a dropdown list opens without scale")
 		single:Close()
-		check(single._shift.Value == 8, "a dropdown list slides down when it closes")
+		check(single._canvas.Position == openPosition, "a closing dropdown list stays at its position")
 
 		-- the ImGui theme draws no decorative icons and closes their gaps
 		local iconTab = win:Tab("Icons", "house")

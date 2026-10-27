@@ -38,7 +38,10 @@ end
 ]=]
 function Measure.Offset(instance: Instance, value: any): any
 	local scale = Measure.Scale(instance)
-	return if scale > 0 then value / scale else value
+	if scale > 0 then
+		return value / scale
+	end
+	return value
 end
 
 --[=[

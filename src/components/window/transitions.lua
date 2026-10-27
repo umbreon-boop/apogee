@@ -1,36 +1,60 @@
 --[=[
-	The window transitions: maximize, minimize and close. They never clip the window and never grow it to scale 1.
+	The window transitions: maximize, minimize and close. Every one is the same fade, so a window never slides or
+	scales between states.
 
 	@class WindowTransitions
 	@location internals/components
 ]=]
+local GuiService = game:GetService("GuiService")
 local Workspace = game:GetService("Workspace")
 
 local Fade = require("../../services/fade")
-local Motion = require("../../services/motion")
 local State = require("../../public")
 local Style = require("../../assets/themes")
 
 local Transitions = {}
 local camera = Workspace.CurrentCamera
-local MAXIMIZE_DURATION = 0.2
-local MINIMIZE_DURATION = 0.32
-local CLOSE_DURATION = 0.2
--- Window transitions only fade or move the existing layout. They never scale or resize child controls mid-flight.
-local SHIFT = Style.Space.XXS
--- every window transition starts fast and settles softly, like the springs of the original library
-local TRANSITION_EASING = Enum.EasingStyle.Quint
-local TRANSITION_DIRECTION = Enum.EasingDirection.Out
+-- A maximized window keeps the same floating margin as a normal window, so its rounded corners never sit on the
+-- screen edge where the game/background shows through them as square notches.
+local MARGIN = Style.Space.S
+-- maximizing changes the window geometry while it is invisible; a short fade keeps the resize quick
+local RESIZE = 0.12
+local REVEAL = TweenInfo.new(RESIZE, Fade.Easing, Fade.Direction, 0, false, Fade.Gap / 2)
 
 -- whether a window animation runs; input waits for it
 function Transitions:_transitioning(): boolean
 	return self._geometryTween ~= nil or self._effectTween ~= nil
 end
 
--- a maximized window fills the screen, so it shows no shadow and no title bar divider
+--[=[
+	Returns the size and position of a maximized window. A ScreenGui that ignores the GUI inset starts at the top of
+	the screen, under the Roblox topbar, so the maximized window is offset by the inset instead of putting its rounded
+	top corners underneath the topbar.
+
+	@param window any -- The window
+	@return Vector2, Vector2 -- The drawable size and the offset inside the screen GUI.
+]=]
+function Transitions.Frame(window: any): (Vector2, Vector2)
+	local gui = window._gui
+	local topLeft, bottomRight = GuiService:GetGuiInset()
+	local viewport = camera.ViewportSize - topLeft - bottomRight
+	local area = gui and (gui :: any).AbsoluteSize
+	local drawable = viewport
+	if area and area.X > 0 and area.Y > 0 then
+		-- never grow past the drawable viewport, even if the screen GUI reports a larger size on a mobile client
+		drawable = Vector2.new(math.min(area.X, viewport.X), math.min(area.Y, viewport.Y))
+	end
+	local size = Vector2.new(math.max(0, drawable.X - 2 * MARGIN), math.max(0, drawable.Y - 2 * MARGIN))
+	local position = Vector2.new(MARGIN, MARGIN)
+	if gui and gui:IsA("ScreenGui") and gui.IgnoreGuiInset then
+		position += topLeft
+	end
+	return size, position
+end
+
+-- a maximized window hides the title bar divider; the surface keeps its rounded corners in every state
 --@inline
 local function updateDecorations(window: any)
-	window._shadow.Visible = not window.Maximized
 	local divider = window.TitleBar and window.TitleBar.Frame:FindFirstChild("Divider")
 	if divider then
 		divider.Visible = not window.Maximized
@@ -52,47 +76,10 @@ function Transitions._cancel(window: any): number
 	return window._transitionId
 end
 
--- Transitions never clip the window: a rectangular clip cuts the content with straight edges over the round corners.
-local function playWindowTween(
-		window: any,
-		key: string,
-		instance: Instance,
-		properties: { [string]: any },
-		duration: number,
-		transitionId: number,
-		completed: (() -> ())?
-	)
-	window[key] = true
-	local tween = Motion.Tween(instance, properties, duration, TRANSITION_EASING, TRANSITION_DIRECTION, function(state)
-		if window._transitionId ~= transitionId then
-			return
-		end
-		window[key] = nil
-		if state == Enum.PlaybackState.Completed and completed then
-			completed()
-		end
-	end)
-	if window[key] == true then
-		window[key] = tween
-	end
-	return tween
-end
-
--- Fades the window content together with its shadow. The shadow fades on its own, because it rests at its own
--- transparency, not at 0.
---@inline
-local function fade(window: any, visible: boolean, duration: number, completed: (() -> ())?)
-	Fade.To(window.Root, visible, duration, completed, function(child)
-		return child == window._shadow
-	end)
-	Motion.Tween(window._shadow, {ImageTransparency = if visible then window._shadowRest else 1}, duration, TRANSITION_EASING, TRANSITION_DIRECTION)
-end
-
--- ends a fade at once, fully visible
+-- Ends any running fade and restores the exact transparency of the window.
 --@inline
 local function unwrap(window: any)
 	Fade.Settle(window.Root)
-	window._shadow.ImageTransparency = window._shadowRest
 end
 
 --[=[
@@ -108,45 +95,62 @@ function Transitions:Maximize(value: boolean, keepPosition: boolean?, instant: b
 	end
 	State:CloseDropdowns(self, true)
 	self.Maximized = value
-	self.TitleBar:SetMaximized(value)
-	updateDecorations(self)
 
 	if value then
 		self._restoreSize = Vector2.new(self.Size.X.Offset, self.Size.Y.Offset)
 	end
 
-	local width = if value then camera.ViewportSize.X else self._restoreSize.X
-	local height = if value then camera.ViewportSize.Y else self._restoreSize.Y
+	local width, height = self._restoreSize.X, self._restoreSize.Y
+	local maxPosition = Vector2.zero
+	if value then
+		local maxSize, position = Transitions.Frame(self)
+		width, height = maxSize.X, maxSize.Y
+		maxPosition = position
+	end
 	local size = UDim2.fromOffset(width, height)
 	self.Size = size
 	local goals = {Size = size}
 	if not keepPosition then
-		goals.Position = if value then UDim2.fromOffset(0, 0) else self.Position
+		goals.Position = self.Position
+		if value then goals.Position = UDim2.fromOffset(maxPosition.X, maxPosition.Y) end
 	end
 
 	local transitionId = Transitions._cancel(self)
+	self.Root.Visible = true
 	unwrap(self)
-	if instant then
+
+	local function apply()
+		if self._transitionId ~= transitionId then
+			return
+		end
 		self._rootScale.Scale = 1
-		self:_place(Vector2.new(width, height), if goals.Position then Vector2.new(goals.Position.X.Offset, goals.Position.Y.Offset) else nil)
-	else
-		local position = goals.Position or self.Root.Position
-		-- Swap geometry while fully faded out, then animate only the fade so child controls don't reflow mid-tween.
-		Fade.Hide(self.Root, function(child)
-			return child == self._shadow
-		end)
-		self._shadow.ImageTransparency = 1
-		self.Root.Visible = true
-		self._rootScale.Scale = 1
-		self.Root.Size = size
-		self.Root.Position = position
-		self._geometryTween = true
-		fade(self, true, MAXIMIZE_DURATION, function()
-			if self._transitionId == transitionId then
-				self._geometryTween = nil
-			end
-		end)
+		local position
+		if goals.Position then
+			position = Vector2.new(goals.Position.X.Offset, goals.Position.Y.Offset)
+		end
+		self:_place(Vector2.new(width, height), position)
+		self.TitleBar:SetMaximized(self.Maximized)
+		updateDecorations(self)
 	end
+
+	if instant then
+		apply()
+		return
+	end
+	self._geometryTween = true
+	-- Swap the geometry while fully faded out, so the old layout never stretches over the new size.
+	Fade.To(self.Root, false, RESIZE, function()
+		if self._transitionId ~= transitionId then
+			return
+		end
+		apply()
+		Fade.To(self.Root, true, REVEAL, function()
+			if self._transitionId ~= transitionId then
+				return
+			end
+			self._geometryTween = nil
+		end)
+	end)
 end
 
 --[=[
@@ -159,32 +163,35 @@ function Transitions:Minimize()
 	State:CloseDropdowns(self, true)
 	self.Minimized = not self.Minimized
 	local transitionId = Transitions._cancel(self)
-	local hidden = not self.Root.Visible
 	self.Root.Visible = true
+	self._effectTween = true
 
 	if self.Minimized then
 		if self.Minimizer then
-			self.Minimizer:_show(true, MINIMIZE_DURATION)
+			self.Minimizer:_show(true, Fade.Duration)
 		end
-		fade(self, false, MINIMIZE_DURATION, function()
-			if self._transitionId == transitionId and self.Minimized and not self._destroyed then
-				self.Root.Visible = false
+		Fade.To(self.Root, false, Fade.Duration, function()
+			if self._transitionId ~= transitionId or not self.Minimized or self._destroyed then
+				return
 			end
+			self.Root.Visible = false
+			self._effectTween = nil
 		end)
-		playWindowTween(self, "_geometryTween", self.Root, {
-			Position = self.Root.Position + UDim2.fromOffset(0, SHIFT)
-		}, MINIMIZE_DURATION, transitionId)
 	else
 		if self.Minimizer then
-			self.Minimizer:_show(false, MINIMIZE_DURATION)
+			self.Minimizer:_show(false, Fade.Duration)
 		end
-		local restored = if self.Maximized then UDim2.fromOffset(0, 0) else self.Position
-		-- A fully minimized window fades and slides in at its own place without scaling its contents.
-		if hidden then
-			self.Root.Position = restored + UDim2.fromOffset(0, SHIFT)
+		local restored = self.Position
+		if self.Maximized then
+			local _, maxPosition = Transitions.Frame(self)
+			restored = UDim2.fromOffset(maxPosition.X, maxPosition.Y)
 		end
-		fade(self, true, MINIMIZE_DURATION)
-		playWindowTween(self, "_geometryTween", self.Root, {Position = restored}, MINIMIZE_DURATION, transitionId)
+		self.Root.Position = restored
+		Fade.To(self.Root, true, Fade.Duration, function()
+			if self._transitionId == transitionId then
+				self._effectTween = nil
+			end
+		end)
 	end
 
 	if self._notified then
@@ -193,11 +200,9 @@ function Transitions:Minimize()
 
 	self._notified = true
 	local content
-	if self.Minimizer and self.Minimizer.Enabled then
-		content = "Tap the floating button to bring the interface back."
-	else
-		content = "Use the Minimize Bind keybind to toggle the interface."
-	end
+	content = self.Minimizer and self.Minimizer.Enabled
+	and "Tap the floating button to bring the interface back."
+	or "Use the Minimize Bind keybind to toggle the interface."
 	State:Notify({Title = "Interface", Content = content, Duration = 6, _window = self})
 end
 
@@ -212,12 +217,12 @@ function Transitions:Close()
 	self._closing = true
 	State:CloseDropdowns(self, true)
 	local transitionId = Transitions._cancel(self)
-	-- the same motion as a dialog: the window fades and slides down a little
-	fade(self, false, CLOSE_DURATION)
-	playWindowTween(self, "_geometryTween", self.Root, {Position = self.Root.Position + UDim2.fromOffset(0, SHIFT)}, CLOSE_DURATION, transitionId, function()
-		if self._destroyed then
+	self._effectTween = true
+	Fade.To(self.Root, false, Fade.Duration, function()
+		if self._destroyed or self._transitionId ~= transitionId then
 			return
 		end
+		self._effectTween = nil
 		self.Root.Visible = false
 		State:SafeCallback(self._closeCallback)
 		self:Destroy()

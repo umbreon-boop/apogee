@@ -55,9 +55,15 @@ function Input.New(config: Config, parent: any): any
 	local finished = config.Finished
 	local maxLength = config.MaxLength
 	if type(config) == "table" then
-		numeric = if numeric ~= nil then numeric else rawget(config, "Numeric")
-		finished = if finished ~= nil then finished else rawget(config, "Finished")
-		maxLength = if maxLength ~= nil then maxLength else rawget(config, "_maxLength")
+		if numeric == nil then
+			numeric = rawget(config, "Numeric")
+		end
+		if finished == nil then
+			finished = rawget(config, "Finished")
+		end
+		if maxLength == nil then
+			maxLength = rawget(config, "_maxLength")
+		end
 	end
 	local self = Class.New(Input, {Numeric = numeric or false, Finished = finished or false})
 	local element = Element.New(config.Title, config.Description, parent.Container, false, parent._window)

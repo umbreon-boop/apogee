@@ -60,7 +60,7 @@ Basic formatting is applied automatically when running `mise lint`.
 
 ### File Structure and Definitions
 - all module imports, service references, constants, and variable initializations must appear at the top of the file, preferably in this order
-- variable definitions should not include large chains of logical operators but rather make use of if statement expressions
+- prefer logical operator assignments (`and`/`or`) over `if` statements or Luau `if` expressions when both branches assign the same variable; do not build long chains or nest them more than two levels deep
 - type annotations are required on the entire public API (parameters and return types); private/internal members do not need them
 - defining a custom exported type for a public API's return value is optional as long as the doc comment's `@return` tag correctly documents the shape
 
@@ -77,7 +77,7 @@ local Service = game:GetService("UserInputService")
 -- in practice each category would be large enough to be worth separating
 local Exampler = {}
 local LITERAL = "arbitrary value"
-local arbitraryValue = if Service then {} else nil
+local arbitraryValue = Service and {} or nil
 
 --[=[
   I'm out of ideas for those description paragraphs.

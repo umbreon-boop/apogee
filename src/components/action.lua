@@ -163,7 +163,9 @@ end
 	@param primary boolean -- Whether the button is the default action
 ]=]
 function Action:SetPrimary(primary: boolean)
-	self:SetRole(if primary then "Suggested" else "Standard")
+	local role = "Standard"
+	if primary then role = "Suggested" end
+	self:SetRole(role)
 end
 
 --[=[
@@ -172,7 +174,9 @@ end
 	@param destructive boolean -- Whether the button is destructive
 ]=]
 function Action:SetDestructive(destructive: boolean)
-	self:SetRole(if destructive then "Destructive" else "Standard")
+	local role = "Standard"
+	if destructive then role = "Destructive" end
+	self:SetRole(role)
 end
 
 return Action

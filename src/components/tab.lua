@@ -8,7 +8,6 @@ local Class = require("../services/class")
 local Container = require("./container")
 local Images = require("../assets/images")
 local Icon = require("./icon")
-local Icons = require("../assets/icons")
 local Motion = require("../services/motion")
 local Pointer = require("../services/pointer")
 local Section = require("./section")
@@ -60,31 +59,34 @@ function Tab.New(config: Config, window: any): any
 		Themed = {TextColor3 = "Text"}
 	})
 
-	local image = Icon.New(Icons.GetIcon(config.Icon), {
-			AnchorPoint = Vector2.new(0, 0.5),
-			Size = UDim2.fromOffset(16, 16),
-			Position = UDim2.new(0, 8, 0.5, 0),
-			BackgroundTransparency = 1,
-			ZIndex = 2,
-			Themed = {ImageColor3 = "Text"}
-		})
+	local image = Icon.New(config.Icon, {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Size = UDim2.fromOffset(16, 16),
+		Position = UDim2.new(0, 8, 0.5, 0),
+		BackgroundTransparency = 1,
+		ZIndex = 2,
+		Themed = {ImageColor3 = "Text"}
+	})
 	self._icon = image
 	local function updateTabLayout(width: number, fitText: boolean?)
 		-- a horizontal tab is a centered content block: padding, icon, gap, text, padding.
-		local iconX = if fitText then 12 else 8
+		local iconX = 8
+		if fitText then iconX = 12 end
 		image.Position = UDim2.new(0, iconX, 0.5, 0)
-		local textX = if image.Visible then iconX + 16 + 6 else 12
+		local textX = 12
+		if image.Visible then textX = iconX + 16 + 6 end
 		label.Position = UDim2.new(0, textX, 0.5, 0)
 		label.Size = UDim2.new(0, math.max(0, width - textX - 12), 1, 0)
 		-- horizontally the tab is sized from the text, so truncating it can still ellipsize a full title
-		label.TextTruncate = if fitText then Enum.TextTruncate.None else Enum.TextTruncate.AtEnd
+		label.TextTruncate = fitText and Enum.TextTruncate.None or Enum.TextTruncate.AtEnd
 	end
 	self._updateTabLayout = updateTabLayout
 	self._preferredTabWidth = function()
 		-- Measure the text independently of the label's current size. `TextBounds` shrinks with
 		-- the label once truncation kicks in, so reading it here would lock a tab at its current width.
 		-- The icon is part of the centered content block, not extra padding on the left.
-		local content = if image.Visible then 16 + 6 else 0
+		local content = 0
+		if image.Visible then content = 16 + 6 end
 		return math.max(Theme:Size("Tab"), math.ceil(Measure.Text(label).X) + 12 + content + 12)
 	end
 	local highlight = Squircle.New(Style.Squircle.Control, {
@@ -151,10 +153,12 @@ function Tab.New(config: Config, window: any): any
 
 	Pointer.Hover(self.Frame, fade, {
 		Rest = function()
-			return if self.Selected then 0.8 else 1
+			if self.Selected then return 0.8 end
+			return 1
 		end,
 		Hover = function()
-			return if self.Selected then 0.8 else 0.9
+			if self.Selected then return 0.8 end
+			return 0.9
 		end,
 		Press = 0.8
 	})
@@ -198,10 +202,18 @@ end
 ]=]
 function Tab:SetSelected(selected: boolean)
 	rawset(self, "Selected", selected)
-	Theme:Override(self._highlight, {ImageColor3 = if selected then "Accent" else "Hover"})
-	Theme:Override(self._icon, {ImageColor3 = if selected then "Accent" else "Text"})
+	local color = "Hover"
+	local iconColor = "Text"
+	local transparency = 1
+	if selected then
+		color = "Accent"
+		iconColor = "Accent"
+		transparency = 0.8
+	end
+	Theme:Override(self._highlight, {ImageColor3 = color})
+	Theme:Override(self._icon, {ImageColor3 = iconColor})
 	-- Selection remains visible while an overlay is open.
-	self._fade(if selected then 0.8 else 1, true)
+	self._fade(transparency, true)
 end
 
 return Tab

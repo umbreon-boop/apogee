@@ -40,10 +40,16 @@ local PADDING = 2
 	@return [Textbox](Textbox.md) -- The textbox component with its input and visual elements.
 ]=]
 function Textbox.New(parent: Instance?, element: boolean?): Textbox
+	local frameKey = "Background"
+	local outlineKey = "Border"
+	if element then
+		frameKey = "Field"
+		outlineKey = "ControlBorder"
+	end
 	local self = setmetatable({
-		_frameKey = if element then "Field" else "Background",
+		_frameKey = frameKey,
 		_focusedKey = "Field",
-		_outlineKey = if element then "ControlBorder" else "Border"
+		_outlineKey = outlineKey
 	}, Textbox)
 
 	self.Input = Creator:New("TextBox", {
@@ -127,10 +133,16 @@ end
 
 function Textbox:_focus(focused: boolean)
 	self:_update()
+	local frameColor = self._frameKey
+	local indicatorColor = self._outlineKey
+	if focused then
+		frameColor = self._focusedKey
+		indicatorColor = "Accent"
+	end
 	Theme:Override(self.Background, {
-		ImageColor3 = if focused then self._focusedKey else self._frameKey
+		ImageColor3 = frameColor
 	})
-	Theme:Override(self.Indicator, {ImageColor3 = if focused then "Accent" else self._outlineKey})
+	Theme:Override(self.Indicator, {ImageColor3 = indicatorColor})
 	self.Indicator.Visible = focused
 end
 

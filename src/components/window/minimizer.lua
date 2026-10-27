@@ -13,7 +13,6 @@ local Drag = require("../../services/drag")
 local Fade = require("../../services/fade")
 local Frame = require("../frame")
 local Icon = require("../icon")
-local Icons = require("../../assets/icons")
 local Motion = require("../../services/motion")
 local State = require("../../public")
 local Creator = require("../../services/creator")
@@ -25,8 +24,10 @@ local isPress = Pointer.IsPress
 --@inline
 local function getInsets(parent: Instance?): (Vector2, Vector2)
 	local topLeftInset, bottomRightInset = GuiService:GetGuiInset()
-	topLeftInset = if parent and parent:IsA("ScreenGui") and parent.IgnoreGuiInset then Vector2.zero else topLeftInset
-	bottomRightInset = if parent and parent:IsA("ScreenGui") and parent.IgnoreGuiInset then Vector2.zero else bottomRightInset
+	if parent and parent:IsA("ScreenGui") and parent.IgnoreGuiInset then
+		topLeftInset = Vector2.zero
+		bottomRightInset = Vector2.zero
+	end
 	return topLeftInset, bottomRightInset
 end
 
@@ -64,14 +65,14 @@ function Minimizer.New(config: Config, window: any): any
 	local size = config.Size or Theme:Size("Minimizer")
 	local self = Class.New(Minimizer, {_window = window, _size = size})
 
-	local icon = Icon.New(Icons.GetIcon(config.Icon or DEFAULT_ICON), {
-			Name = "Icon",
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromScale(0.5, 0.5),
-			BackgroundTransparency = 1,
-			Themed = {ImageColor3 = "Text"}
-		})
+	local icon = Icon.New(config.Icon or DEFAULT_ICON, {
+		Name = "Icon",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(0.5, 0.5),
+		BackgroundTransparency = 1,
+		Themed = {ImageColor3 = "Text"}
+	})
 	Icon.Watch(icon, function() end)
 	local body = Creator:New("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ClipsDescendants = true})
 	local scale = Creator:New("UIScale", {Scale = 1})
@@ -114,7 +115,7 @@ function Minimizer.New(config: Config, window: any): any
 
 	Class.Define(self, {
 		Icon = function(_, value: string)
-			Theme:Style("Icon", icon, Icons.GetIcon(value))
+			Icon.Set(icon, value)
 		end,
 		Body = Minimizer._setBody,
 		Enabled = Minimizer._sync,
@@ -124,10 +125,13 @@ function Minimizer.New(config: Config, window: any): any
 	})
 	self:From({
 		Icon = config.Icon or DEFAULT_ICON,
-		Enabled = if config.Enabled ~= nil then config.Enabled else UserInputService.TouchEnabled == true,
+		Enabled = config.Enabled,
 		-- buttons of several windows stack downwards instead of covering each other
 		Position = config.Position or UDim2.new(0, size / 2 + Style.Space.S, 0.5, #window._windows * (size + Style.Space.XXS))
 	})
+	if config.Enabled == nil then
+		self.Enabled = UserInputService.TouchEnabled == true
+	end
 	if config.Body then
 		self.Body = config.Body
 	end
@@ -156,7 +160,9 @@ function Minimizer:_show(visible: boolean, duration: number)
 	Fade.To(button, visible, duration, function()
 		button.Visible = visible
 	end)
-	Motion.Tween(button, {ImageTransparency = if visible then self._window.Transparency or 0 else 1}, duration)
+	local transparency = 1
+	if visible then transparency = self._window.Transparency or 0 end
+	Motion.Tween(button, {ImageTransparency = transparency}, duration)
 end
 
 function Minimizer:SetTransparency(value: number)
@@ -202,9 +208,10 @@ function Minimizer:_connect()
 		if not activeInput or not origin then
 			return
 		end
-		local follows = if activeInput.UserInputType == Enum.UserInputType.Touch
-			then input == activeInput
-		else input.UserInputType == Enum.UserInputType.MouseMovement
+		local follows = input.UserInputType == Enum.UserInputType.MouseMovement
+		if activeInput.UserInputType == Enum.UserInputType.Touch then
+			follows = input == activeInput
+		end
 		if not follows then
 			return
 		end
@@ -223,9 +230,10 @@ function Minimizer:_connect()
 		if not activeInput then
 			return
 		end
-		local released = if activeInput.UserInputType == Enum.UserInputType.Touch
-			then input == activeInput
-		else input.UserInputType == Enum.UserInputType.MouseButton1
+		local released = input.UserInputType == Enum.UserInputType.MouseButton1
+		if activeInput.UserInputType == Enum.UserInputType.Touch then
+			released = input == activeInput
+		end
 		if released then
 			activeInput = nil
 			if Drag._active == self then

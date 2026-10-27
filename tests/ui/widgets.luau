@@ -107,9 +107,9 @@ return function(t)
 	check(#pal._actions == 2, "palette has Done and Cancel buttons")
 	check(pal._confirmBtn.Parent.Parent.Position.Y.Scale == 1, "Done and Cancel buttons sit in the bottom tray")
 	check(pal._confirmBtn.LayoutOrder < pal._cancelBtn.LayoutOrder, "picker buttons keep the dialog's left-to-right order")
-	check(pal._confirmBtn:FindFirstChildOfClass("ImageLabel").Image == "rbxassetid://80999662900595", "Done button uses standard squircle")
+	check(pal._confirmBtn:FindFirstChildOfClass("ImageLabel").Image == Apogee.internals.assets.images.Squircle, "Done button uses standard squircle")
 	check(pal._confirmBtn:FindFirstChildOfClass("ImageLabel").ImageColor3 == accent(), "Done button is filled with the accent")
-	check(pal._cancelBtn:FindFirstChildOfClass("ImageLabel").Image == "rbxassetid://80999662900595", "Cancel button uses standard squircle")
+	check(pal._cancelBtn:FindFirstChildOfClass("ImageLabel").Image == Apogee.internals.assets.images.Squircle, "Cancel button uses standard squircle")
 
 	local hexBox = pal._fields.Hex
 	local redBox = pal._fields.Red

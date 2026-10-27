@@ -13,9 +13,10 @@ local releases = setmetatable({}, {__mode = "k"})
 
 State.Maid:Task(UserInputService.InputEnded:Connect(function(input)
 	for frame, press in releases do
-		local matches = if press.input.UserInputType == Enum.UserInputType.Touch
-			then input == press.input
-		else input.UserInputType == Enum.UserInputType.MouseButton1
+		local matches = input.UserInputType == Enum.UserInputType.MouseButton1
+		if press.input.UserInputType == Enum.UserInputType.Touch then
+			matches = input == press.input
+		end
 		if matches then
 			releases[frame] = nil
 			pcall(press.callback, input)
@@ -90,7 +91,10 @@ export type States = {
 function Pointer.Hover(button: GuiButton, set: (number, boolean?) -> (), states: States): () -> ()
 	--@inline
 	local function value(state: number | () -> number): number
-		return if type(state) == "function" then state() else state
+		if type(state) == "function" then
+			return state()
+		end
+		return state
 	end
 	--@inline
 	local function blocked(): boolean

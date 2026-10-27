@@ -17,6 +17,30 @@ local WindowInput = {}
 local camera = Workspace.CurrentCamera
 local isPress = Pointer.IsPress
 
+-- a drag follows the same finger, or the mouse while the button is held
+--@inline
+local function followsDrag(press: InputObject, input: InputObject): boolean
+	if press.UserInputType == Enum.UserInputType.Touch then
+		return input == press
+	end
+	return input.UserInputType == Enum.UserInputType.MouseMovement
+end
+--@inline
+local function releasesDrag(press: InputObject, input: InputObject): boolean
+	if press.UserInputType == Enum.UserInputType.Touch then
+		return input == press
+	end
+	return input.UserInputType == Enum.UserInputType.MouseButton1
+end
+-- a splitter or resize drag also follows the original pointer object on desktop
+--@inline
+local function followsPointer(press: InputObject, input: InputObject): boolean
+	if press.UserInputType == Enum.UserInputType.Touch then
+		return input == press
+	end
+	return input.UserInputType == Enum.UserInputType.MouseMovement or input == press
+end
+
 -- starts moving the window with a press on the title bar
 local function beginDrag(self: any, input: InputObject)
 	if not isPress(input) or self._drag or Drag._active or self:_transitioning() or State:HasOverlay() then
@@ -155,11 +179,8 @@ function WindowInput.Connect(self: any, fit: (Vector2) -> Vector2)
 
 	State.Connect(UserInputService.InputChanged, function(input)
 		local drag = self._drag
-		local followsDrag = drag
-		and (if drag.input.UserInputType == Enum.UserInputType.Touch
-				then input == drag.input
-			else input.UserInputType == Enum.UserInputType.MouseMovement)
-		if followsDrag then
+		local dragging = drag ~= nil and followsDrag(drag.input, input)
+		if dragging then
 			local delta = input.Position - drag.origin
 			if delta.Magnitude > DRAG_SLIP_THRESHOLD or drag.input.UserInputType ~= Enum.UserInputType.Touch then
 				if self.Maximized then
@@ -174,19 +195,13 @@ function WindowInput.Connect(self: any, fit: (Vector2) -> Vector2)
 			end
 		end
 
-		local followsSplitter = splitterDragging and activeSplitterInput
-		and (if activeSplitterInput.UserInputType == Enum.UserInputType.Touch
-				then input == activeSplitterInput
-			else (input.UserInputType == Enum.UserInputType.MouseMovement or input == activeSplitterInput))
+		local followsSplitter = splitterDragging and activeSplitterInput ~= nil and followsPointer(activeSplitterInput, input)
 		if followsSplitter then
 			local deltaX = input.Position.X - splitterOriginX
 			self:SetTabWidth(splitterStartWidth + deltaX)
 		end
 
-		local followsResize = resizing and activeResizeInput
-		and (if activeResizeInput.UserInputType == Enum.UserInputType.Touch
-				then input == activeResizeInput
-			else input.UserInputType == Enum.UserInputType.MouseMovement)
+		local followsResize = resizing and activeResizeInput ~= nil and followsPointer(activeResizeInput, input)
 		if followsResize then
 			local delta = Vector2.new(input.Position.X, input.Position.Y) - resizeOrigin
 			local newW = resizeStartSize.X + (delta.X * resizeEdge.X)
@@ -208,10 +223,7 @@ function WindowInput.Connect(self: any, fit: (Vector2) -> Vector2)
 
 	State.Connect(UserInputService.InputEnded, function(input)
 		local drag = self._drag
-		local released = drag
-		and (if drag.input.UserInputType == Enum.UserInputType.Touch
-				then input == drag.input
-			else input.UserInputType == Enum.UserInputType.MouseButton1)
+		local released = drag ~= nil and releasesDrag(drag.input, input)
 		if released then
 			self._drag = nil
 			if Drag._active == self and not resizing and not splitterDragging then
@@ -219,10 +231,7 @@ function WindowInput.Connect(self: any, fit: (Vector2) -> Vector2)
 			end
 		end
 
-		local releasedSplitter = splitterDragging and activeSplitterInput
-		and (if activeSplitterInput.UserInputType == Enum.UserInputType.Touch
-				then input == activeSplitterInput
-			else input.UserInputType == Enum.UserInputType.MouseButton1)
+		local releasedSplitter = splitterDragging and activeSplitterInput ~= nil and releasesDrag(activeSplitterInput, input)
 		if releasedSplitter then
 			splitterDragging = false
 			activeSplitterInput = nil
@@ -231,10 +240,7 @@ function WindowInput.Connect(self: any, fit: (Vector2) -> Vector2)
 			end
 		end
 
-		local releasedResize = resizing and activeResizeInput
-		and (if activeResizeInput.UserInputType == Enum.UserInputType.Touch
-				then input == activeResizeInput
-			else input.UserInputType == Enum.UserInputType.MouseButton1)
+		local releasedResize = resizing and activeResizeInput ~= nil and releasesDrag(activeResizeInput, input)
 		if releasedResize then
 			resizing = false
 			activeResizeInput = nil
@@ -248,8 +254,8 @@ function WindowInput.Connect(self: any, fit: (Vector2) -> Vector2)
 	end, self.Root)
 
 	State.Connect(camera:GetPropertyChangedSignal("ViewportSize"), function()
-			self:_fitScreen()
-		end, self.Root)
+		self:_fitScreen()
+	end, self.Root)
 
 	self._tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 		if self._horizontalTabs then

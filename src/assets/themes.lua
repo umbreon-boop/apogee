@@ -6,9 +6,10 @@
 ]=]
 local Workspace = game:GetService("Workspace")
 local camera = Workspace.CurrentCamera
-local initialViewport = if camera and camera.ViewportSize.X >= 640 and camera.ViewportSize.Y >= 480
-	then camera.ViewportSize
-else Vector2.new(1920, 1080)
+local initialViewport = Vector2.new(1920, 1080)
+if camera and camera.ViewportSize.X >= 640 and camera.ViewportSize.Y >= 480 then
+	initialViewport = camera.ViewportSize
+end
 
 local baseDiagonal = math.sqrt(1920 * 1920 + 1080 * 1080)
 local currentDiagonal = math.sqrt(initialViewport.X * initialViewport.X + initialViewport.Y * initialViewport.Y)

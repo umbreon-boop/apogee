@@ -12,7 +12,6 @@ local Container = require("./container")
 local Drag = require("../services/drag")
 local Images = require("../assets/images")
 local Icons = require("../assets/icons")
-local Motion = require("../services/motion")
 local State = require("../public")
 local Style = require("../assets/themes")
 local Creator = require("../services/creator")
@@ -40,12 +39,6 @@ export type Config = {
 local Popup = Class.Extend({Type = "Popup"}, Container)
 local camera = Workspace.CurrentCamera
 local BUTTON_SIZE = 28
-local TRANSITION_DURATION = 0.2
-local TRANSITION_EASING = Enum.EasingStyle.Quint
-local TRANSITION_DIRECTION = Enum.EasingDirection.Out
--- A hidden popup sits this many pixels lower and slides up while it fades in. Do not scale the popup: under a
--- `UIScale` Roblox draws text at a whole font size rounded down, and the text then grows when the scale reaches 1.
-local SHIFT = Style.Space.XXS
 
 
 --[=[
@@ -64,22 +57,28 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 	local size = config.Size or UDim2.fromOffset(340, 380)
 
 	-- centered in the parent: the screen for top-level popups, the window for window popups
-	local area = if actualParent:IsA("ScreenGui") then camera.ViewportSize else Measure.Offset(actualParent, actualParent.AbsoluteSize)
-	local centeredX = if size.X.Scale > 0
-		then -math.floor(size.X.Offset / 2)
-	else math.floor((area.X - size.X.Offset) / 2)
-	local centeredY = if size.Y.Scale > 0
-		then -math.floor(size.Y.Offset / 2)
-	else math.floor((area.Y - size.Y.Offset) / 2)
-	local position = if config.Position
-		then config.Position
-	elseif size.X.Scale == 0 and size.Y.Scale == 0 then UDim2.fromOffset(centeredX, centeredY)
-	else UDim2.new(
-		(1 - size.X.Scale) / 2,
-		centeredX,
-		(1 - size.Y.Scale) / 2,
-		centeredY
-	)
+	local area
+	area = actualParent:IsA("ScreenGui") and camera.ViewportSize
+	or Measure.Offset(actualParent, actualParent.AbsoluteSize)
+	local centeredX = math.floor((area.X - size.X.Offset) / 2)
+	local centeredY = math.floor((area.Y - size.Y.Offset) / 2)
+	if size.X.Scale > 0 then centeredX = -math.floor(size.X.Offset / 2) end
+	if size.Y.Scale > 0 then centeredY = -math.floor(size.Y.Offset / 2) end
+	local position
+	if config.Position then
+		position = config.Position
+	elseif size.X.Scale == 0 and size.Y.Scale == 0 then
+		position = UDim2.fromOffset(centeredX, centeredY)
+	else
+		position = UDim2.new(
+			(1 - size.X.Scale) / 2,
+			centeredX,
+			(1 - size.Y.Scale) / 2,
+			centeredY
+		)
+	end
+	local transparency = 0
+	if owner then transparency = owner.Transparency or 0 end
 
 	local self = Class.New(Popup, {
 		Size = size,
@@ -91,7 +90,7 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 		_widgets = {},
 		_dropdowns = {},
 		_gui = actualParent,
-		Transparency = if owner then owner.Transparency or 0 else 0,
+		Transparency = transparency,
 		_closeCallback = config.CloseCallback
 	})
 	self._window = self
@@ -135,7 +134,16 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 		Position = UDim2.new(1, -10, 0.5, 0),
 		BackgroundTransparency = 1
 	})
-	Theme:Style("TitleBarButton", closeButton, self, Icons.GetIcon("x"), nil, "×")
+	local iconResolved = false
+	local closeIcon = Icons.GetIcon("x", nil, function(image)
+		iconResolved = true
+		if closeButton.Parent then
+			pcall(Theme.Style, Theme, "TitleBarButton", closeButton, self, image, nil, "×")
+		end
+	end)
+	if not iconResolved then
+		Theme:Style("TitleBarButton", closeButton, self, closeIcon, nil, "×")
+	end
 
 	local titleBar = Creator:New("Frame", {
 		Size = UDim2.new(1, 0, 0, 38),
@@ -168,7 +176,7 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 		})
 	})
 
-	local backdrop = Backdrop.New(Style.Squircle.Window, false)
+	local backdrop = Backdrop.New(Style.Squircle.Window)
 	local barrier = Creator:New("TextButton", {
 		Name = "PopupBarrier",
 		Size = UDim2.fromScale(1, 1),
@@ -223,11 +231,6 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 	local origin: Vector2?, start: UDim2? = nil, nil
 	Drag.Bind(titleBar, function(pointer)
 		if not origin then
-			-- the drag owns the position, so a running slide stops
-			if self._slide then
-				self._slide:Cancel()
-				self._slide = nil
-			end
 			origin, start = pointer, self.Root.Position
 		end
 		local delta = pointer - origin
@@ -269,25 +272,9 @@ function Popup:_show(visible: boolean, done: (() -> ())?)
 		self.Root.Visible = true
 		State:ResetHighlights()
 	end
-	-- the same motion as a dialog: the popup fades and slides a little
-	local rest = self.Position
-	local hidden = rest + UDim2.fromOffset(0, SHIFT)
-	-- a popup that is not shown starts lower; a running or finished slide continues from where it is
-	if visible and not self._shown then
-		self.Root.Position = hidden
-	end
-	self._shown = visible
-	if self._slide then
-		self._slide:Cancel()
-	end
-	local slide = Motion.Tween(self.Root, {Position = if visible then rest else hidden}, TRANSITION_DURATION, TRANSITION_EASING, TRANSITION_DIRECTION)
-	self._slide = slide
-	slide.Completed:Connect(function()
-		if self._slide == slide then
-			self._slide = nil
-		end
-	end)
-	Fade.To(self.Root, visible, TRANSITION_DURATION, function()
+	-- the popup stays where it was dragged; only its opacity changes
+	self.Root.Position = self.Position
+	Fade.To(self.Root, visible, Fade.Duration, function()
 		if self._transitionId ~= transitionId or self._destroyed then
 			return
 		end

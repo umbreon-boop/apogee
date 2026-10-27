@@ -77,8 +77,14 @@ function Toggle.Look(frame: Frame): any
 		Knob = knob,
 		Fill = fill,
 		Paint = function(enabled: boolean, instant: boolean?)
-			local position = {Position = UDim2.new(0, if enabled then TRACK.X - KNOB - PADDING else PADDING, 0.5, 0)}
-			local accent = {BackgroundTransparency = if enabled then 0 else 1}
+			local positionX = PADDING
+			local transparency = 1
+			if enabled then
+				positionX = TRACK.X - KNOB - PADDING
+				transparency = 0
+			end
+			local position = {Position = UDim2.new(0, positionX, 0.5, 0)}
+			local accent = {BackgroundTransparency = transparency}
 			if instant then
 				knob.Position = position.Position
 				fill.BackgroundTransparency = accent.BackgroundTransparency

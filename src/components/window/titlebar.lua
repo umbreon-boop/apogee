@@ -18,6 +18,7 @@ local Theme = require("../../services/theme")
 
 local TitleBar = {}
 TitleBar.__index = TitleBar
+local iconRequests = setmetatable({}, {__mode = "k"})
 local BUTTON_SIZE = 28
 local HOVERED = 0.9
 local PRESSED = 0.8
@@ -49,6 +50,24 @@ local function title(text: string?, transparency: number, key: string, size: num
 	end
 	fit()
 	return label
+end
+
+local function styleButtonIcon(frame: Instance, window: any, name: string, highlight: string?, text: string?)
+	local request = {}
+	local completed = false
+	iconRequests[frame] = request
+	local function apply(image: string?)
+		Theme:Style("TitleBarButton", frame, window, image, highlight, text)
+	end
+	local image = Icons.GetIcon(name, nil, function(resolved)
+		completed = true
+		if iconRequests[frame] == request and frame.Parent then
+			apply(resolved)
+		end
+	end)
+	if not completed then
+		apply(image)
+	end
 end
 
 --[=[
@@ -121,14 +140,12 @@ local function button(icon: string, position: UDim2, parent: Instance, window: a
 		Text = ""
 	})
 	frame.MouseButton1Click:Connect(callback)
-	Theme:Style("TitleBarButton", frame, window, icon, highlight, text)
+	styleButtonIcon(frame, window, icon, highlight, text)
 	return frame
 end
 
 function TitleBar.New(window: any, config: { Title: string, SubTitle: string?, Icon: string? }): any
 	local self = setmetatable({}, TitleBar)
-
-	local iconAsset = Icons.GetIcon(config.Icon)
 
 	local children: { Instance } = {
 		Creator:New("UIListLayout", {
@@ -139,8 +156,8 @@ function TitleBar.New(window: any, config: { Title: string, SubTitle: string?, I
 		})
 	}
 
-	if iconAsset then
-		local icon = Icon.New(iconAsset, {
+	if config.Icon and config.Icon ~= "" then
+		local icon = Icon.New(config.Icon, {
 			Name = "Icon",
 			Size = UDim2.fromOffset(16, 16),
 			BackgroundTransparency = 1,
@@ -172,35 +189,33 @@ function TitleBar.New(window: any, config: { Title: string, SubTitle: string?, I
 	})
 
 	-- closing the last window unloads the interface, otherwise only this window is closed
-	local closeIcon = Icons.GetIcon("x")
-	local maxIcon = Icons.GetIcon("scan")
-	local minIcon = Icons.GetIcon("minus")
-
-	self.CloseButton = button(closeIcon, UDim2.new(1, -10, 0.5, 0), self.Frame, window, function()
-			local last = #window._windows <= 1
-			window:Dialog({
-				Title = "Close",
-				Content = if last
-					then "Are you sure you want to unload the interface?"
-				else "Are you sure you want to close this window?",
-				Buttons = {
-					{
-						Title = "Yes",
-						Style = "Destructive",
-						Callback = function()
-							window:Close()
-						end
-					},
-					{Title = "No"}
-				}
-			})
-		end, "Destructive", "×")
-	self.MaxButton = button(maxIcon, UDim2.new(1, -46, 0.5, 0), self.Frame, window, function()
-			window:Maximize(not window.Maximized)
-		end, nil, "□")
-	self.MinButton = button(minIcon, UDim2.new(1, -82, 0.5, 0), self.Frame, window, function()
-			window:Minimize()
-		end, nil, "_")
+	self.CloseButton = button("x", UDim2.new(1, -10, 0.5, 0), self.Frame, window, function()
+		local last = #window._windows <= 1
+		local content = "Are you sure you want to close this window?"
+		if last then
+			content = "Are you sure you want to unload the interface?"
+		end
+		window:Dialog({
+			Title = "Close",
+			Content = content,
+			Buttons = {
+				{
+					Title = "Yes",
+					Style = "Destructive",
+					Callback = function()
+						window:Close()
+					end
+				},
+				{Title = "No"}
+			}
+		})
+	end, "Destructive", "×")
+	self.MaxButton = button("scan", UDim2.new(1, -46, 0.5, 0), self.Frame, window, function()
+		window:Maximize(not window.Maximized)
+	end, nil, "□")
+	self.MinButton = button("minus", UDim2.new(1, -82, 0.5, 0), self.Frame, window, function()
+		window:Minimize()
+	end, nil, "_")
 
 	self._window = window
 	return self
@@ -212,8 +227,9 @@ end
 	@param maximized boolean -- Whether the window is maximized
 ]=]
 function TitleBar:SetMaximized(maximized: boolean)
-	local icon = Icons.GetIcon(if maximized then "minimize-2" else "scan")
-	Theme:Style("TitleBarButton", self.MaxButton, self._window, icon, nil, "□")
+	local iconName = "scan"
+	if maximized then iconName = "minimize-2" end
+	styleButtonIcon(self.MaxButton, self._window, iconName, nil, "□")
 end
 
 Theme:RegisterComponent("TitleBarButton", TitleBar.ButtonLook)

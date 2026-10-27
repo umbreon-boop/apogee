@@ -10,7 +10,6 @@ local Class = require("../services/class")
 local Element = require("../components/element")
 local Images = require("../assets/images")
 local Icon = require("../components/icon")
-local Icons = require("../assets/icons")
 local Motion = require("../services/motion")
 local Pointer = require("../services/pointer")
 local State = require("../public")
@@ -57,12 +56,6 @@ Option.__index = Option
 
 local camera = Workspace.CurrentCamera
 local MAX_VISIBLE = 10
-local TRANSITION_DURATION = 0.2
-local TRANSITION_EASING = Enum.EasingStyle.Quint
-local TRANSITION_DIRECTION = Enum.EasingDirection.Out
--- A hidden list sits this many pixels lower and slides up while it fades in. Do not scale the list: under a
--- `UIScale` Roblox draws text at a whole font size rounded down, and the text then grows when the scale reaches 1.
-local SHIFT = Style.Space.XXS
 
 local isPress = Pointer.IsPress
 
@@ -99,13 +92,16 @@ function Option.New(dropdown: any, value: string): any
 
 	Pointer.Hover(self.Frame, fade, {
 		Rest = function()
-			return if self.Selected then 0.8 else 1
+			if self.Selected then return 0.8 end
+			return 1
 		end,
 		Hover = function()
-			return if self.Selected then 0.8 else 0.88
+			if self.Selected then return 0.8 end
+			return 0.88
 		end,
 		Press = function()
-			return if self.Selected then 0.75 else 0.82
+			if self.Selected then return 0.75 end
+			return 0.82
 		end
 	})
 	self.Frame.Activated:Connect(function()
@@ -123,9 +119,17 @@ function Option:Update()
 	else
 		self.Selected = dropdown.Value == self.Value
 	end
-	Theme:Override(self.Highlight, {ImageColor3 = if self.Selected then "Accent" else "Hover"})
-	Theme:Override(self.Label, {TextColor3 = if self.Selected then "Accent" else "Text"})
-	self._fade(if self.Selected then 0.8 else 1)
+	local color = "Hover"
+	local textColor = "Text"
+	local transparency = 1
+	if self.Selected then
+		color = "Accent"
+		textColor = "Accent"
+		transparency = 0.8
+	end
+	Theme:Override(self.Highlight, {ImageColor3 = color})
+	Theme:Override(self.Label, {TextColor3 = textColor})
+	self._fade(transparency)
 end
 
 --[=[
@@ -187,22 +191,24 @@ function Dropdown.New(config: Config, parent: any): any
 			Visible = false,
 			Themed = {ImageColor3 = "ControlBorder"}
 		}),
-		Icon.New(Icons.GetIcon("chevron-down"), {
-				Name = "Chevron",
-				Size = UDim2.fromOffset(14, 14),
-				AnchorPoint = Vector2.new(1, 0.5),
-				Position = UDim2.new(1, -6, 0.5, 0),
-				BackgroundTransparency = 1,
-				Themed = {ImageColor3 = "SubText"}
-			}),
+		Icon.New("chevron-down", {
+			Name = "Chevron",
+			Size = UDim2.fromOffset(14, 14),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -6, 0.5, 0),
+			BackgroundTransparency = 1,
+			Themed = {ImageColor3 = "SubText"}
+		}),
 		display
 	})
 	Theme:Height(inner, "Control")
 
 	-- a theme without icons gives the value the space of the chevron
 	Icon.Watch(inner:FindFirstChild("Chevron"), function(shown)
-			display.Size = UDim2.new(1, if shown then -24 else -16, 0, 14)
-		end)
+		local width = -16
+		if shown then width = -24 end
+		display.Size = UDim2.new(1, width, 0, 14)
+	end)
 
 	local _, innerFade = Motion.Bind(1, inner:FindFirstChild("Hover"), "ImageTransparency", true)
 	Pointer.Hover(inner, innerFade, {Rest = 1, Hover = 0.88, Press = 0.82})
@@ -284,14 +290,6 @@ function Dropdown.New(config: Config, parent: any): any
 	self._storage.Value = self:_resolve(config.Value)
 	self._last = self._storage.Value
 
-	-- the slide offset of the list; the list moves only while it shows
-	self._shift = Creator:New("NumberValue", {Value = SHIFT})
-	self._shift.Changed:Connect(function()
-		if canvas.Visible then
-			self:_position()
-		end
-	end)
-
 	self:_position()
 	self:_resize()
 	self:_build()
@@ -338,16 +336,31 @@ end
 function Dropdown:_resolve(value: any): any
 	local values = self.Values
 	local function option(item: any): string?
-		local name = if type(item) == "number" then values[item] else item
-		return if table.find(values, name) then name else nil
+		local name = item
+		if type(item) == "number" then
+			name = values[item]
+		end
+		if table.find(values, name) then
+			return name
+		end
+		return nil
 	end
 	if not self.Multi then
 		return option(value)
 	end
 
 	local selected = {}
-	for key, item in if type(value) == "table" then value else {value} do
-		local name = if type(key) == "number" then option(item) elseif item then option(key) else nil
+	local selections = {value}
+	if type(value) == "table" then
+		selections = value
+	end
+	for key, item in selections do
+		local name
+		if type(key) == "number" then
+			name = option(item)
+		elseif item then
+			name = option(key)
+		end
 		if name then
 			selected[name] = true
 		end
@@ -376,7 +389,7 @@ function Dropdown:_reconcile()
 			self._last = selected
 		end
 	elseif current ~= nil and not table.find(values, current) then
-		self._storage.Value = if self._allowNull or #values == 0 then nil else values[1]
+		self._storage.Value = not self._allowNull and #values > 0 and values[1] or nil
 		self._last = self._storage.Value
 		changed = true
 	end
@@ -393,17 +406,17 @@ function Dropdown:_position()
 		offset = canvas.AbsoluteSize.Y - 5 - (camera.ViewportSize.Y - inner.AbsolutePosition.Y) + 40
 	end
 	-- whole pixels, so the edges and text of the list render sharp
-	local shift = math.round(self._shift.Value)
-	canvas.Position = UDim2.fromOffset(math.round(inner.AbsolutePosition.X - 1), math.round(inner.AbsolutePosition.Y - 5 - offset) + shift)
+	canvas.Position = UDim2.fromOffset(math.round(inner.AbsolutePosition.X - 1), math.round(inner.AbsolutePosition.Y - 5 - offset))
 end
 
 -- The height comes from the row count, not from a measurement: a layout measures new rows only a frame later, and
 -- a measurement during the open animation is scaled, so a measured list would be too short and cut its last row.
 function Dropdown:_resize()
 	local rows = #self.Values
-	local height = if rows > MAX_VISIBLE
-		then Theme:Size("List")
-	else rows * Theme:Size("Option") + math.max(rows - 1, 0) * Style.Space.XXXS + 20
+	local height = rows * Theme:Size("Option") + math.max(rows - 1, 0) * Style.Space.XXXS + 20
+	if rows > MAX_VISIBLE then
+		height = Theme:Size("List")
+	end
 	local width = 0
 	for _, option in self._options or {} do
 		width = math.max(width, Measure.Text(option.Label).X)
@@ -466,17 +479,20 @@ end
 function Dropdown:_choose(option: any)
 	local selected = not option.Selected
 	local active = self:GetActiveValues()
-	local count = if type(active) == "table" then #active else active
+	local count = active
+	if type(active) == "table" then
+		count = #active
+	end
 	if count == 1 and not selected and not self._allowNull then
 		return
 	end
 
 	if self.Multi then
 		option.Selected = selected
-		self.Value[option.Value] = if selected then true else nil
+		self.Value[option.Value] = selected and true or nil
 	else
 		option.Selected = selected
-		self._storage.Value = if selected then option.Value else nil
+		self._storage.Value = selected and option.Value or nil
 		self._last = self._storage.Value
 		for _, other in self._options do
 			other:Update()
@@ -515,27 +531,18 @@ function Dropdown:Open()
 	rawset(self, "Opened", true)
 	self:_rows()
 	State:ResetHighlights()
-	-- a closing list continues from where it is
-	if not self._canvas.Visible then
-		self._shift.Value = SHIFT
-	end
 	self:_position()
 	if self._scrollFrame then
 		self._scrollFrame.ScrollingEnabled = false
 	end
 	self._barrier.Visible = true
 	self._canvas.Visible = true
-	-- the list fades in and slides up a little to the field
-	if self._shiftTween then
-		self._shiftTween:Cancel()
-	end
-	Fade.To(self._canvas, true, TRANSITION_DURATION)
-	self._shiftTween = Motion.Tween(self._shift, {Value = 0}, TRANSITION_DURATION, TRANSITION_EASING, TRANSITION_DIRECTION)
+	Fade.To(self._canvas, true, Fade.Duration)
 end
 
 --[=[
 	Closes the option list.
-	@param instant boolean? -- Skip the fade and slide
+	@param instant boolean? -- Skip the fade
 ]=]
 function Dropdown:Close(instant: boolean?)
 	if not self.Opened then
@@ -545,19 +552,13 @@ function Dropdown:Close(instant: boolean?)
 	if self._scrollFrame then
 		self._scrollFrame.ScrollingEnabled = true
 	end
-	if self._shiftTween then
-		self._shiftTween:Cancel()
-		self._shiftTween = nil
-	end
 	if instant then
-		self._shift.Value = SHIFT
 		self._canvas.Visible = false
 		self._barrier.Visible = false
 		Fade.Settle(self._canvas)
 		return
 	end
-	self._shiftTween = Motion.Tween(self._shift, {Value = SHIFT}, TRANSITION_DURATION, TRANSITION_EASING, TRANSITION_DIRECTION)
-	Fade.To(self._canvas, false, TRANSITION_DURATION, function()
+	Fade.To(self._canvas, false, Fade.Duration, function()
 		if not self.Opened then
 			self._canvas.Visible = false
 			self._barrier.Visible = false
@@ -581,7 +582,7 @@ function Dropdown:Display()
 	else
 		text = self.Value or ""
 	end
-	self._display.Text = if text == "" then "--" else text
+	self._display.Text = text == "" and "--" or text
 end
 
 --[=[
@@ -590,7 +591,8 @@ end
 ]=]
 function Dropdown:GetActiveValues(): any
 	if not self.Multi then
-		return if self.Value then 1 else 0
+		if self.Value then return 1 end
+		return 0
 	end
 
 	local values = {}
@@ -624,12 +626,7 @@ end
 	Destroys the dropdown and its floating list.
 ]=]
 function Dropdown:Destroy()
-	if self._shiftTween then
-		self._shiftTween:Cancel()
-		self._shiftTween = nil
-	end
 	Widget.Destroy(self)
-	self._shift:Destroy()
 	self._barrier:Destroy()
 	self._canvas:Destroy()
 end

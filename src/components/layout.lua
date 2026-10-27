@@ -49,9 +49,14 @@ function Layout.New(config: Config, parent: any): any
 		-- nested layouts keep the scrolling frame of their tab or section
 		ScrollFrame = parent.ScrollFrame
 	})
-	self._rootLayout = if parent.Type == "Layout" then parent._rootLayout else self
+	self._rootLayout = self
+	if parent.Type == "Layout" then
+		self._rootLayout = parent._rootLayout
+	end
+	local fillDirection = Enum.FillDirection.Vertical
+	if axis == "X" then fillDirection = Enum.FillDirection.Horizontal end
 	local layout = Creator:New("UIListLayout", {
-		FillDirection = if axis == "X" then Enum.FillDirection.Horizontal else Enum.FillDirection.Vertical,
+		FillDirection = fillDirection,
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Padding = UDim.new(0, spacing)
 	})
@@ -87,7 +92,8 @@ function Layout.New(config: Config, parent: any): any
 					local itemMinimum = Resize.MinimumWidth(item)
 					Resize.Apply(itemFrame, itemMinimum)
 					widestMinimum = math.max(widestMinimum, itemMinimum)
-					local itemHeight = if item.Type == "Layout" then item._naturalHeight else itemFrame.Size.Y.Offset
+					local itemHeight = itemFrame.Size.Y.Offset
+					if item.Type == "Layout" then itemHeight = item._naturalHeight end
 					if axis == "X" and item.Type == "Layout" then
 						equalHeight = math.max(equalHeight, itemHeight)
 					end
@@ -132,7 +138,8 @@ function Layout.New(config: Config, parent: any): any
 		self._naturalHeight = height
 		self._minimumWidth = minimumWidth
 		Resize.Apply(self.Frame, minimumWidth)
-		local width = if self._parentContainer.Type == "Layout" then self.Frame.Size.X else UDim.new(1, 0)
+		local width = UDim.new(1, 0)
+		if self._parentContainer.Type == "Layout" then width = self.Frame.Size.X end
 		self.Frame.Size = UDim2.new(width.Scale, width.Offset, 0, self._sharedHeight or height)
 		self._refreshing = false
 		if self == self._rootLayout then

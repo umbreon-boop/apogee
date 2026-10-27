@@ -1,4 +1,5 @@
 return function(t)
+	local Apogee = t.Apogee
 	local check = t.check
 	local input = t.input
 	local pointer = t.pointer
@@ -33,7 +34,7 @@ return function(t)
 	})
 	local actions = buttons(dialog)
 	check(actions[1].LayoutOrder < actions[2].LayoutOrder and actions[1].Size.X.Offset == actions[2].Size.X.Offset, "regular dialog button order and equal sizing are preserved")
-	check(actions[1]:FindFirstChildOfClass("ImageLabel").Image == "rbxassetid://80999662900595", "dialog buttons are squircles")
+	check(actions[1]:FindFirstChildOfClass("ImageLabel").Image == Apogee.internals.assets.images.Squircle, "dialog buttons are squircles")
 	check(dialog._border ~= nil and dialog.TintFrame.ClassName == "ImageButton", "the dialog overlay is a squircle")
 	check(dialog.Root.Size.X.Offset <= win.Root.Size.X.Offset and dialog.Root.Size.Y.Offset <= win.Root.Size.Y.Offset, "a dialog fits inside its window")
 	check(dialog.ButtonHolder.Size.Y.Offset <= dialog.ButtonHolderFrame.Size.Y.Offset, "dialog buttons fit inside the button tray")

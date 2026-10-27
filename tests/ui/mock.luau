@@ -5,7 +5,41 @@ local fs = require("@lune/fs")
 local luau = require("@lune/luau")
 local process = require("@lune/process")
 local roblox = require("@lune/roblox")
+local serde = require("@lune/serde")
 local task = require("@lune/task")
+
+local base64Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local base64Values = {}
+for index = 1, #base64Alphabet do
+	base64Values[string.sub(base64Alphabet, index, index)] = index - 1
+end
+
+local function decodeBase64(input: string): string
+	local output, chunk = {}, {}
+	local value, bits = 0, 0
+	for index = 1, #input do
+		local character = string.sub(input, index, index)
+		if character == "=" then
+			break
+		end
+		local digit = base64Values[character]
+		if digit ~= nil then
+			value = value * 64 + digit
+			bits += 6
+			if bits >= 8 then
+				bits -= 8
+			chunk[#chunk + 1] = string.char(math.floor(value / 2 ^ bits) % 256)
+				value %= 2 ^ bits
+				if #chunk == 8192 then
+					output[#output + 1] = table.concat(chunk)
+					table.clear(chunk)
+				end
+			end
+		end
+	end
+	output[#output + 1] = table.concat(chunk)
+	return table.concat(output)
+end
 
 local BUNDLE = process.args[1] or "dist/showcase.lua"
 local SANDBOX = (process.env.TMPDIR or "/tmp") .. "/affluent-tests"
@@ -26,7 +60,10 @@ local function trunc(value: number?): number?
 	if value == nil then
 		return nil
 	end
-	return if value < 0 then math.ceil(value) else math.floor(value)
+	if value < 0 then
+		return math.ceil(value)
+	end
+	return math.floor(value)
 end
 
 local UDim, UDim2 = roblox.UDim, roblox.UDim2
@@ -109,12 +146,15 @@ local EVENTS = {
 	Changed = true
 }
 local LAYOUT = {AbsoluteSize = true, AbsolutePosition = true, TextBounds = true, AbsoluteContentSize = true}
+local camera
 
 -- the size of a text, the same rule for TextBounds and for TextService
 local function textSize(text: string, size: number, width: number?): any
 	local line = #text * size * 0.5
-	local wrap = if width and width > 0 and width < math.huge then width else math.huge
-	local lines = if line == 0 then 0 else math.max(1, math.ceil(line / wrap))
+	local wrap = math.huge
+	if width and width > 0 and width < math.huge then wrap = width end
+	local lines = 0
+	if line ~= 0 then lines = math.max(1, math.ceil(line / wrap)) end
 	return roblox.Vector2.new(math.min(line, wrap), lines * size * 1.2)
 end
 
@@ -206,8 +246,13 @@ InstanceMt.__index = function(instance, key)
 		return d.events[key]
 	elseif key == "TextBounds" then
 		local size = d.props.Size
-		local width = if d.props.TextWrapped and size then size.X.Offset else nil
+		local width
+		if d.props.TextWrapped and size then width = size.X.Offset end
 		return textSize(d.rendered or "", d.props.TextSize or 14, width)
+	elseif key == "AbsoluteSize" and d.ClassName == "ScreenGui" then
+		local topLeft = roblox.Vector2.new(0, 36)
+		if d.props.IgnoreGuiInset == true then topLeft = roblox.Vector2.new(0, 0) end
+		return camera.ViewportSize - topLeft
 	elseif LAYOUT[key] then
 		return roblox.Vector2.new(100, 20)
 	elseif key == "CursorPosition" then
@@ -273,7 +318,7 @@ end
 -- services --------------------------------------------------------------------
 local renderStepped = Signal.new()
 local viewportChanged = Signal.new()
-local camera = {
+camera = {
 	ViewportSize = roblox.Vector2.new(1920, 1080),
 	GetPropertyChangedSignal = function()
 		return viewportChanged
@@ -336,7 +381,8 @@ local services = {
 		end,
 		GetTextSize = function(_, text, size, _font, frame)
 			local line = math.max(#text, 1) * size * 0.5
-			local width = if frame and frame.X < math.huge then frame.X else line
+			local width = line
+			if frame and frame.X < math.huge then width = frame.X end
 			local lines = math.max(1, math.ceil(line / math.max(width, 1)))
 			return roblox.Vector2.new(math.min(line, width), lines * size * 1.2)
 		end
@@ -351,8 +397,74 @@ local services = {
 	},
 	Workspace = {CurrentCamera = camera},
 	CoreGui = Instance.new("CoreGui"),
-	HttpService = {}
+	HttpService = {
+		JSONDecode = function(_, value)
+			return serde.decode("json", value)
+		end,
+		JSONEncode = function(_, value)
+			return serde.encode("json", value)
+		end
+	}
 }
+
+-- The asset mock reads the embedded core archive and exposes its PNG entries as a local
+-- source. Other packs use a small fixture of names exercised by the test suite. Local
+-- URLs are the only successful result; unresolved assets never get an rbxasset fallback.
+local function readArchive(encoded)
+	local compressed = serde.decompress("zstd", decodeBase64(encoded))
+	local bitLength = buffer.readu32(buffer.fromstring(compressed), 0)
+	local archive = string.sub(compressed, 5)
+	assert(bitLength == #archive * 8, "src/assets/core.lua has an invalid archive length")
+	assert(string.sub(archive, 1, 6) == "APGPK3", "src/assets/core.lua does not contain an APGPK3 archive")
+	local data = buffer.fromstring(archive)
+	local count = buffer.readu32(data, 6)
+	local offset = 10
+	local entries = {}
+	for _ = 1, count do
+		local nameLength = buffer.readu16(data, offset)
+		local contentLength = buffer.readu32(data, offset + 2)
+		offset += 6
+		local name = buffer.readstring(data, offset, nameLength)
+		offset += nameLength + contentLength
+		entries[#entries + 1] = name
+	end
+	return entries
+end
+
+local coreSource = fs.readFile("src/assets/core.lua")
+local coreEncoded = string.match(coreSource, '^%s*return%s*"(.-)"%s*$')
+assert(coreEncoded, "src/assets/core.lua must contain a returned Base64 string")
+local coreEntries = readArchive(coreEncoded)
+
+local TEST_PACKS = {
+	lucide = {"house", "orbit", "star", "layers", "home", "square"},
+	sfsymbols = {"house"},
+	gravity = {"house"},
+	feather = {"home"},
+	["heroicons-outline"] = {"home"},
+	["heroicons-solid"] = {"home"},
+	["material-design"] = {"home"},
+	["tabler-outline"] = {"home"},
+	["tabler-filled"] = {"home"},
+}
+
+local function localAssetPack(pack)
+	local images = {}
+	if pack == "core" then
+		for _, filename in coreEntries do
+			images[filename] = "mock PNG " .. filename
+		end
+	else
+		local names = TEST_PACKS[pack]
+		if not names then
+			return nil
+		end
+		for _, name in names do
+			images[name .. ".png"] = "mock PNG " .. name
+		end
+	end
+	return {images = images}
+end
 
 local hui = Instance.new("Folder")
 local genv = {}
@@ -380,6 +492,12 @@ local function makeEnv(targetGenv, targetHui)
 		end,
 		gethui = function()
 			return targetHui
+		end,
+		base64decode = decodeBase64,
+		getassetpack = localAssetPack,
+		getcustomasset = function(path)
+			assert(fs.isFile(SANDBOX .. "/" .. path), "missing local asset " .. path)
+			return "localasset://" .. path
 		end,
 		isfile = function(path)
 			return fs.isFile(SANDBOX .. "/" .. path)

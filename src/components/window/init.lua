@@ -82,13 +82,15 @@ local MIN_TAB_WIDTH = 60
 local DEFAULT_TAB_WIDTH = 160
 local MAX_TAB_WIDTH = 240
 -- the invisible splitter is wider than the gap it sits in, and wider again for fingers
-local SPLITTER_WIDTH = if UserInputService.TouchEnabled then 36 else 20
+local SPLITTER_WIDTH = 20
+if UserInputService.TouchEnabled then SPLITTER_WIDTH = 36 end
 local MIN_SIZE = Vector2.new(430, 200)
 local MAX_SIZE = Vector2.new(2048, 2048)
 local SCREEN_MARGIN = 16
 local SECTION_TOP = 48
 -- the title line is 24 px high, followed by a small gap
 local CONTENT_TOP = SECTION_TOP + 24 + 2
+-- the tab crossfade: the leaving page clears quickly, the arriving page eases in
 local TAB_OUT_DURATION = 0.1
 local TAB_IN_DURATION = 0.22
 local TAB_SHIFT = 8
@@ -113,7 +115,9 @@ local function fit(size: Vector2, contentMinimum: number?): Vector2
 end
 local function minimumContentWidth(window: any): number
 	local required = Resize.RequiredWidth(window)
-	return math.max(MIN_CONTENT_WIDTH, if required > 0 then required + LAYOUT_CLEARANCE else 0)
+	local content = 0
+	if required > 0 then content = required + LAYOUT_CLEARANCE end
+	return math.max(MIN_CONTENT_WIDTH, content)
 end
 
 function Window:_fitResize(size: Vector2): Vector2
@@ -128,9 +132,8 @@ end
 	@return [Window](Window.md) -- The newly created window.
 ]=]
 function Window.New(config: Config, parent: Instance): any
-	local preferred = if config.Size
-		then Vector2.new(config.Size.X.Offset, config.Size.Y.Offset)
-	else defaultViewportSize()
+	local preferred
+	preferred = config.Size and Vector2.new(config.Size.X.Offset, config.Size.Y.Offset) or defaultViewportSize()
 	local fitted = fit(preferred)
 	local size = UDim2.fromOffset(fitted.X, fitted.Y)
 	local tabLayout = Creator:New("UIListLayout", {Padding = UDim.new(0, Style.Space.XXXS)})
@@ -140,9 +143,8 @@ function Window.New(config: Config, parent: Instance): any
 
 	local centeredX = math.floor((camera.ViewportSize.X - fitted.X) / 2)
 	local centeredY = math.floor((camera.ViewportSize.Y - fitted.Y) / 2)
-	local position = if config.Position
-		then config.Position
-	else UDim2.fromOffset(centeredX, centeredY)
+	local position
+	position = config.Position or UDim2.fromOffset(centeredX, centeredY)
 	if config.Position and config.Position.X.Scale == 0 and config.Position.Y.Scale == 0 then
 		local maxX = math.max(0, camera.ViewportSize.X - fitted.X)
 		local maxY = math.max(0, camera.ViewportSize.Y - fitted.Y)
@@ -233,7 +235,7 @@ function Window.New(config: Config, parent: Instance): any
 		ZIndex = 5
 	})
 
-	self.Backdrop = Backdrop.New()
+	self.Backdrop = Backdrop.New(nil, true)
 	self._rootScale = Creator:New("UIScale", {Scale = 1})
 	self.Root = Creator:New("Frame", {
 		BackgroundTransparency = 1,
@@ -243,10 +245,6 @@ function Window.New(config: Config, parent: Instance): any
 		Parent = parent
 	}, {self.Backdrop, self.TabDisplay, self.ContainerCanvas, tabFrame, self.Splitter, self._rootScale})
 	self:_updateMinimumWidth()
-	-- the shadow is a direct child of the root and fades on its own, back to its rest transparency
-	self._shadow = self.Backdrop:FindFirstChild("Shadow")
-	self._shadowRest = self._shadow.ImageTransparency
-	self._shadow.Parent = self.Root
 
 	self.TitleBar = TitleBar.New(self, config)
 	if config.Minimizer ~= false then
@@ -275,8 +273,13 @@ function Window.New(config: Config, parent: Instance): any
 		end
 		if self._horizontalTabs ~= horizontal then
 			self._horizontalTabs = horizontal
-			tabLayout.FillDirection = if horizontal then Enum.FillDirection.Horizontal else Enum.FillDirection.Vertical
-			self.TabHolder.ScrollingDirection = if horizontal then Enum.ScrollingDirection.X else Enum.ScrollingDirection.Y
+			if horizontal then
+				tabLayout.FillDirection = Enum.FillDirection.Horizontal
+				self.TabHolder.ScrollingDirection = Enum.ScrollingDirection.X
+			else
+				tabLayout.FillDirection = Enum.FillDirection.Vertical
+				self.TabHolder.ScrollingDirection = Enum.ScrollingDirection.Y
+			end
 			self:_updateMinimumWidth()
 		end
 	end
@@ -304,6 +307,10 @@ end
 function Window:SetTransparency(value: number)
 	value = math.clamp(value, 0, 1)
 	self.Transparency = value
+	local body = self.Backdrop and self.Backdrop:FindFirstChild("Body")
+	if body then
+		body.BackgroundTransparency = value
+	end
 	local background = self.Backdrop and self.Backdrop:FindFirstChild("Background")
 	if background then
 		background.ImageTransparency = value
@@ -426,9 +433,10 @@ end
 function Window:_fitScreen()
 	local viewport = camera.ViewportSize
 	if self.Maximized then
+		local maxSize, maxPosition = Transitions.Frame(self)
 		self:_updateMinimumWidth()
-		self.Size = UDim2.fromOffset(viewport.X, viewport.Y)
-		self:_place(viewport)
+		self.Size = UDim2.fromOffset(maxSize.X, maxSize.Y)
+		self:_place(maxSize, maxPosition)
 		return
 	end
 
@@ -438,7 +446,9 @@ function Window:_fitScreen()
 	self.Size = UDim2.fromOffset(size.X, size.Y)
 	self.Position = UDim2.fromOffset(x, y)
 	-- a minimized window keeps its minimized position, the restore animation moves it back
-	self:_place(size, if self.Minimized then nil else Vector2.new(x, y))
+	local position
+	if not self.Minimized then position = Vector2.new(x, y) end
+	self:_place(size, position)
 end
 
 -- sizes and moves the window frame at once, without animation
@@ -571,7 +581,8 @@ end
 	@param target Tab | number -- The tab or its index
 ]=]
 function Window:SelectTab(target: any)
-	local tab = if type(target) == "number" then self.Tabs[target] else target
+	local tab = target
+	if type(target) == "number" then tab = self.Tabs[target] end
 	if not tab or not table.find(self.Tabs, tab) then
 		return
 	end

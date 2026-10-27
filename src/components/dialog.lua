@@ -22,16 +22,11 @@ local PAD = 24
 local TOP_PAD = 16
 local MIN_WIDTH = 280
 local MIN_HEIGHT = 100
-local TRANSITION_DURATION = 0.2
--- The card slides up by this many pixels while it fades in, and back down while it fades out. Do not scale the
--- card: under a `UIScale` Roblox draws text at a whole font size rounded down, and the text then grows when the
--- scale reaches 1 at the end of the animation.
-local SHIFT = Style.Space.XXS
 local OVERLAY_ZINDEX = 10
 
--- the same curve as the other transitions: fast at the start, soft at the end
-local OPEN = TweenInfo.new(TRANSITION_DURATION, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local CLOSE = OPEN
+-- Every surface uses the same fade. Do not slide or scale the card: under a `UIScale` Roblox draws text at a whole
+-- font size rounded down, and the text then grows when the scale reaches 1 at the end of the animation.
+local OPEN = TweenInfo.new(Fade.Duration, Fade.Easing, Fade.Direction)
 --@inline
 local function tween(instance: Instance, properties: { [string]: any }, info: TweenInfo, completed: ((Enum.PlaybackState) -> ())?)
 	return Motion.Tween(instance, properties, info, nil, nil, completed)
@@ -50,7 +45,7 @@ end
 local function track(dialog: any, open: boolean)
 	local dialogs = dialog._window and dialog._window._dialogs
 	if dialogs then
-		dialogs[dialog] = if open then true else nil
+		dialogs[dialog] = open and true or nil
 	end
 end
 
@@ -164,8 +159,8 @@ function Dialog.New(window: any): any
 	Fade.Hide(self.Root)
 	-- the card stays centered on whole pixels while the window changes size
 	State.Connect(root:GetPropertyChangedSignal("Size"), function()
-			self:_place()
-		end, self.TintFrame)
+		self:_place()
+	end, self.TintFrame)
 
 	Theme:Track(function()
 		self:_updateLayout()
@@ -205,8 +200,11 @@ function Dialog:_updateLayout()
 	self.ButtonHolderFrame.Size = UDim2.new(1, 0, 0, tray)
 	self.ButtonHolderFrame.Position = UDim2.new(0, 0, 1, -tray)
 	local window = self._window
-	local winWidth = if window and window.Size then window.Size.X.Offset else 580
-	local winHeight = if window and window.Size then window.Size.Y.Offset else 460
+	local winWidth, winHeight = 580, 460
+	if window and window.Size then
+		winWidth = window.Size.X.Offset
+		winHeight = window.Size.Y.Offset
+	end
 
 	local count = #self._actions
 	-- the widest button text sets the smallest button width; Action already clamps it to its own range
@@ -234,9 +232,10 @@ function Dialog:_updateLayout()
 		return
 	end
 
-	local buttonsNeededWidth = if count > 0
-		then count * maxButtonWidth + (count - 1) * BUTTON_GAP + 2 * PAD
-	else MIN_WIDTH
+	local buttonsNeededWidth = MIN_WIDTH
+	if count > 0 then
+		buttonsNeededWidth = count * maxButtonWidth + (count - 1) * BUTTON_GAP + 2 * PAD
+	end
 
 	local limitX = math.max(buttonsNeededWidth, math.max(MIN_WIDTH, winWidth - 40))
 	local limitY = math.max(MIN_HEIGHT, winHeight - 40)
@@ -255,7 +254,9 @@ function Dialog:_updateLayout()
 		contentHeight = math.max(Style.Line.Body, Measure.Text(self.Content, even(targetWidth) - 2 * PAD).Y)
 	end
 
-	local textSectionBottom = TOP_PAD + 24 + (if hasContent then 4 + contentHeight else 0) + 12
+	local contentGap = 0
+	if hasContent then contentGap = 4 + contentHeight end
+	local textSectionBottom = TOP_PAD + 24 + contentGap + 12
 	local neededHeight = textSectionBottom + trayHeight()
 	local targetHeight = math.clamp(neededHeight, MIN_HEIGHT, limitY)
 	local availableContentHeight = math.max(0, even(targetHeight) - trayHeight() - 56)
@@ -277,7 +278,7 @@ function Dialog:_position(shift: number): UDim2
 end
 
 -- Centers the card on a whole pixel of the window, so its edges and text render sharp. A layout that keeps the
--- same center does not move the card, so it does not stop a slide.
+-- same center does not move the card, so it does not interrupt the fade.
 function Dialog:_place()
 	local center = self:_position(0)
 	if center == self._center then
@@ -305,10 +306,9 @@ function Dialog:Open()
 	track(self, true)
 	self._closing = false
 	State:ResetHighlights()
+	self.Root.Position = self:_position(0)
 	tween(self.TintFrame, {ImageTransparency = 0.5}, OPEN)
 	Fade.To(self.Root, true, OPEN)
-	self.Root.Position = self:_position(SHIFT)
-	tween(self.Root, {Position = self:_position(0)}, OPEN)
 end
 
 --[=[
@@ -323,11 +323,9 @@ function Dialog:Close()
 	self._closing = true
 	track(self, false)
 	self._border.Visible = false
-	-- the same motion as opening, played back: the card fades and slides down a little
-	tween(self.TintFrame, {ImageTransparency = 1}, CLOSE)
-	Fade.To(self.Root, false, CLOSE)
-	tween(self.Root, {Position = self:_position(SHIFT)}, CLOSE, function(playbackState)
-		if playbackState == Enum.PlaybackState.Completed and self.TintFrame.Parent then
+	tween(self.TintFrame, {ImageTransparency = 1}, OPEN)
+	Fade.To(self.Root, false, OPEN, function()
+		if self.TintFrame.Parent then
 			self.TintFrame:Destroy()
 		end
 	end)
@@ -361,7 +359,12 @@ function Dialog:Button(title: string?, callback: (() -> boolean?)?, style: strin
 		end)
 	end
 
-	action:SetRole(style or if self._buttons == 1 then "Suggested" else "Standard")
+	local role = style
+	if not role then
+		role = "Standard"
+		if self._buttons == 1 then role = "Suggested" end
+	end
+	action:SetRole(role)
 
 	action.Frame.MouseButton1Click:Connect(function()
 		-- a click during the close animation must not run the callback again

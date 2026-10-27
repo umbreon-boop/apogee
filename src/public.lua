@@ -193,10 +193,14 @@ function Apogee:SafeCallback(handler: ((...any) -> ...any)?, ...: any): ...any
 
 	local message = tostring(results[2])
 	local _, index = string.find(message, ":%d+: ")
+	local content = message
+	if index then
+		content = string.sub(message, index + 1)
+	end
 	self:Notify({
 		Title = "Interface",
 		Content = "Callback error",
-		SubContent = if index then string.sub(message, index + 1) else message,
+		SubContent = content,
 		Duration = 5
 	})
 end
@@ -366,6 +370,11 @@ function Public._initialize()
 		return Public
 	end
 
+	-- Load the embedded core pack before requiring or constructing any visible UI.
+	local AssetManager = require("./assets/manager")
+	if getcustomasset then
+		assert(AssetManager.Load("core"), "Unable to load the core UI asset pack before initialization")
+	end
 	Config = require("./services/config")
 	Icons = require("./assets/icons")
 	Notification = require("./components/notification")
@@ -401,7 +410,7 @@ function Public._initialize()
 
 	Public.internals = {
 		aria = {
-			Cache = require("@aria/cache"),
+			Path = require("@aria/path"),
 			Deque = require("@aria/deque"),
 			Event = require("@aria/event"),
 			Interface = require("@aria/interface"),
@@ -410,6 +419,7 @@ function Public._initialize()
 			Vec = require("@aria/vec"),
 		},
 		assets = {
+			manager = require("./assets/manager"),
 			icons = Icons,
 			images = require("./assets/images"),
 			themes = require("./assets/themes"),

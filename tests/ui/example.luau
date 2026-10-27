@@ -29,7 +29,10 @@ return function(t)
 	end
 
 	local function channel(value)
-		return if value <= 0.04045 then value / 12.92 else ((value + 0.055) / 1.055) ^ 2.4
+		if value <= 0.04045 then
+			return value / 12.92
+		end
+		return ((value + 0.055) / 1.055) ^ 2.4
 	end
 
 	local function contrast(a, b)

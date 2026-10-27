@@ -224,7 +224,8 @@ function Keybind:_pick()
 	local key: string? = nil
 	local owner = self._element.Frame
 	local began = State.Connect(UserInputService.InputBegan, function(input)
-		local nextKey = if input.UserInputType == Enum.UserInputType.Keyboard then input.KeyCode.Name else mouseKey(input)
+		local nextKey
+		nextKey = input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name or mouseKey(input)
 		if nextKey then
 			key = nextKey
 		end

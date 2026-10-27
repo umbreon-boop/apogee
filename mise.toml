@@ -4,15 +4,31 @@
 "github:astral-sh/uv" = "latest"
 
 # `umbra` depends on `luajit` as it is itself mostly written in Lua
-"github:umbreon-boop/umbra" = "0.2.2"
+"github:umbreon-boop/umbra" = "latest"
 luajit = "latest"
 
 # required for the CI workflow
 "github:lune-org/lune" = "latest"
 
+[tasks.packs]
+description = "Fetch the latest released core icon pack into the embedded core module"
+run = """
+set -e
+mkdir -p target
+curl -fsSL https://github.com/umbreon-boop/packs/releases/latest/download/core.zst -o target/core.zst
+printf 'return "%s"\n' "$(base64 < target/core.zst | tr -d '\n')" > src/assets/core.lua
+"""
+
 [tasks.build]
 description = "Build the project"
-run = "umbra build"
+depends = ["packs"]
+run = """
+set -e
+umbra update
+curl -fsSL https://github.com/umbreon-boop/packs/releases/latest/download/core.zst -o target/core.zst
+printf 'return "%s"\n' "$(base64 < target/core.zst | tr -d '\n')" > src/assets/core.lua
+umbra build
+"""
 
 [tasks.serve]
 description = "Locally serve the built project"

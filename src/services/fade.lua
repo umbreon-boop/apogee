@@ -9,6 +9,11 @@ local Creator = require("./creator")
 local Motion = require("./motion")
 
 local Fade = {}
+-- Every surface fades with the same timing, so opening and closing never feel like different animations.
+Fade.Duration = 0.2
+Fade.Gap = 0.06
+Fade.Easing = Enum.EasingStyle.Quint
+Fade.Direction = Enum.EasingDirection.Out
 local states = setmetatable({}, {__mode = "k"})
 
 -- the transparency properties that each class draws with
@@ -120,10 +125,16 @@ end
 	@param keep ((child: Instance) -> boolean)? -- Returns true for the children of `host` that do not fade
 ]=]
 function Fade.To(host: GuiObject, visible: boolean, duration: number | TweenInfo, completed: (() -> ())?, keep: ((Instance) -> boolean)?)
-	local state = prepare(host, if visible then 0 else 1, keep)
+	local startValue = 1
+	local goalValue = 0
+	if visible then
+		startValue = 0
+		goalValue = 1
+	end
+	local state = prepare(host, startValue, keep)
 	local token = {}
 	state.token = token
-	state.tween = Motion.Tween(state.alpha, {Value = if visible then 1 else 0}, duration, nil, nil, function(playback)
+	state.tween = Motion.Tween(state.alpha, {Value = goalValue}, duration, nil, nil, function(playback)
 		if playback ~= Enum.PlaybackState.Completed or state.token ~= token then
 			return
 		end

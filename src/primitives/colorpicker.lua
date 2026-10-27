@@ -48,7 +48,10 @@ function ColorPicker.New(config: Config, parent: any): any
 	assert(config.Value, "ColorPicker - Missing Value")
 
 	local owningWindow = parent._window
-	local scroll = parent.ScrollFrame or (if parent.Container and parent.Container:IsA("ScrollingFrame") then parent.Container else nil)
+	local scroll = parent.ScrollFrame
+	if not scroll and parent.Container and parent.Container:IsA("ScrollingFrame") then
+		scroll = parent.Container
+	end
 	local alpha = config.Transparency ~= nil
 	if type(config) == "table" and rawget(config, "_alpha") ~= nil then
 		alpha = rawget(config, "_alpha") == true
@@ -89,7 +92,11 @@ function ColorPicker.New(config: Config, parent: any): any
 	self:From({Title = config.Title, Description = config.Description, Callback = config.Callback})
 	-- construction shows the value without firing the callbacks
 	local hue, saturation, value = config.Value:ToHSV()
-	self:_store(hue, saturation, value, if type(config.Transparency) == "number" then config.Transparency else 0)
+	local transparency = 0
+	if type(config.Transparency) == "number" then
+		transparency = config.Transparency
+	end
+	self:_store(hue, saturation, value, transparency)
 
 	local palette = Palette.New(self, self._window, self.Title, self._alpha, scroll)
 	self._palette = palette
@@ -147,7 +154,11 @@ end
 ]=]
 function ColorPicker:_setHSV(hue: number, saturation: number, value: number, transparency: number?)
 	self:_store(hue, saturation, value, transparency)
-	self:_fire(self.Value, if self._alpha then self.Transparency else nil)
+	local alpha = nil
+	if self._alpha then
+		alpha = self.Transparency
+	end
+	self:_fire(self.Value, alpha)
 end
 
 --[=[
@@ -180,7 +191,11 @@ end
 ]=]
 function ColorPicker:OnChanged(handler: (value: Color3, transparency: number?) -> ())
 	self._changed = handler
-	handler(self.Value, if self._alpha then self.Transparency else nil)
+	local alpha = nil
+	if self._alpha then
+		alpha = self.Transparency
+	end
+	handler(self.Value, alpha)
 end
 
 function ColorPicker:Destroy()

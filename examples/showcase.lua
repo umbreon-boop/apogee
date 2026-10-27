@@ -40,7 +40,8 @@ local function ImGuiToggle(frame: Frame): any
 
 	return {
 		Paint = function(enabled: boolean)
-			checkmark.TextTransparency = if enabled then 0 else 1
+			checkmark.TextTransparency = 1
+			if enabled then checkmark.TextTransparency = 0 end
 		end,
 		Destroy = function()
 			box:Destroy()
@@ -220,7 +221,9 @@ end)
 -- Layouts divide a section into equal subcontainers; each subcontainer hosts the usual primitives and can nest again.
 local layoutSection = main:Section("Layout")
 main:Toggle("Horizontal tabs", false, function(enabled)
-	window:SetTabAxis(if enabled then "X" else "Y")
+	local axis = "Y"
+	if enabled then axis = "X" end
+	window:SetTabAxis(axis)
 end)
 local columns = layoutSection:Layout({Axis = "X", Gap = 8})
 local leftColumn = columns:Subcontainer()

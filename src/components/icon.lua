@@ -7,8 +7,10 @@
 ]=]
 local Creator = require("../services/creator")
 local Theme = require("../services/theme")
+local Icons = require("../assets/icons")
 
 local Icon = {}
+local requests = setmetatable({}, {__mode = "k"})
 
 --[=[
 	The default `Icon` style: shows the given image. Every style of this part must set `Image`, so a theme change
@@ -30,8 +32,23 @@ end
 ]=]
 function Icon.New(image: string?, props: { [string]: any }?): ImageLabel
 	local label = Creator:New("ImageLabel", props)
-	Theme:Style("Icon", label, image)
+	Icon.Set(label, image)
 	return label
+end
+
+function Icon.Set(label: ImageLabel, name: string?)
+	local request = {}
+	local completed = false
+	requests[label] = request
+	local image = Icons.GetIcon(name, nil, function(resolved)
+		completed = true
+		if requests[label] == request and label.Parent then
+			Theme:Style("Icon", label, resolved)
+		end
+	end)
+	if not completed then
+		Theme:Style("Icon", label, image)
+	end
 end
 
 --[=[

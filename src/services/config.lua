@@ -7,7 +7,7 @@
 	@class Config
 	@location internals/services
 ]=]
-local Cache = require("@aria/cache")
+local Path = require("@aria/path")
 local Serde = require("@aria/serde")
 
 local Config = {
@@ -22,7 +22,7 @@ local Config = {
 ]=]
 function Config:SetFolder(folder: string)
 	self.Path = folder
-	Cache.Assure(self.Path)
+	Path.Assure(self.Path)
 end
 
 local AUTOLOAD = "autoload"
@@ -34,21 +34,21 @@ end
 -- Config names become file names, so a separator or parent segment would escape the folder.
 local function invalidName(name: string?): boolean
 	return type(name) ~= "string"
-		or string.find(name, "[/\\]") ~= nil
-		or string.find(name, "%.%.") ~= nil
-		or name == "."
-		or name == ".."
+	or string.find(name, "[/\\]") ~= nil
+	or string.find(name, "%.%.") ~= nil
+	or name == "."
+	or name == ".."
 end
 
 -- reads the file every time: the aria Cache memory copy would still return a config that was deleted
 local function read(self, name: string): string?
-	local file = path(self, name)
-	local exists, isFile = pcall(isfile, file)
+	-- guard with `isfile` exactly like the original config path; some executors treat a read of a missing file as an
+	-- empty string instead of raising
+	local exists, isFile = pcall(isfile, path(self, name))
 	if not exists or not isFile then
 		return nil
 	end
-	local ok, data = pcall(readfile, file)
-	return if ok then data else nil
+	return Path.Read(name .. ".bin", self.Path)
 end
 
 --[=[
@@ -82,7 +82,7 @@ function Config:Save(name: string?): (boolean, string?)
 		return false, "failed to encode data"
 	end
 
-	local saved, err = pcall(Cache.To, Cache, encoded, name .. ".bin", self.Path)
+	local saved, err = pcall(Path.Write, encoded, name .. ".bin", self.Path)
 	if not saved then
 		return false, tostring(err)
 	end
@@ -192,7 +192,7 @@ function Config:SetAutoload(name: string?): (boolean, string?)
 	if not encoded then
 		return false, "the config does not exist"
 	end
-	local saved, err = pcall(Cache.To, Cache, encoded, AUTOLOAD .. ".bin", self.Path)
+	local saved, err = pcall(Path.Write, encoded, AUTOLOAD .. ".bin", self.Path)
 	if not saved then
 		return false, tostring(err)
 	end

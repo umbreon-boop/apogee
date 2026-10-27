@@ -38,4 +38,6 @@ end
 for _, message in crashed do
 	print("  crashed: " .. message)
 end
-t.process.exit(if #results.failed == 0 and #crashed == 0 then 0 else 1)
+local exitCode = 0
+if #results.failed > 0 or #crashed > 0 then exitCode = 1 end
+t.process.exit(exitCode)

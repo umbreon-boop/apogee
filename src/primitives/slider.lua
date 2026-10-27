@@ -116,7 +116,9 @@ function Slider.Look(frame: Frame): any
 			dot.Position = UDim2.fromScale(scale, 0.5)
 			fill.Size = UDim2.fromScale(scale, 1)
 			display.Text = tostring(value)
-			knob:Set(Motion.Spring(if dragging then KNOB_ACTIVE_SIZE else KNOB_SIZE, 8))
+			local size = KNOB_SIZE
+			if dragging then size = KNOB_ACTIVE_SIZE end
+			knob:Set(Motion.Spring(size, 8))
 		end,
 		Destroy = function()
 			track:Destroy()

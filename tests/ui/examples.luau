@@ -39,14 +39,20 @@ return function(t)
 			return sandbox.genv.Apogee
 		end)
 
-		local Apogee = if ok then result else nil
+		local Apogee
+		if ok then Apogee = result end
 		local win = Apogee and Apogee.Current
 		if not ok then
 			check(false, name .. " runs without error (" .. tostring(result) .. ")")
 		else
 			check(Apogee.GUI.Parent == sandbox.hui, name .. " parents its gui to gethui()")
-			check(win ~= nil and #win.Tabs > 0, name .. " shows a window with " .. (if win then #win.Tabs else 0) .. " tabs")
-			check(win ~= nil and #win._elements > 0, name .. " draws " .. (if win then #win._elements else 0) .. " rows")
+			local tabCount, elementCount = 0, 0
+			if win then
+				tabCount = #win.Tabs
+				elementCount = #win._elements
+			end
+			check(win ~= nil and tabCount > 0, name .. " shows a window with " .. tabCount .. " tabs")
+			check(win ~= nil and elementCount > 0, name .. " draws " .. elementCount .. " rows")
 		end
 
 		-- Destroy ends the loops the example spawned, such as the showcase poll loop
