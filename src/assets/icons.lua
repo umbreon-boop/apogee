@@ -58,7 +58,7 @@ function Icons.AddPack(pack: string, values: { [string]: any })
 			warn("Icons.AddPack: unsupported value for '" .. tostring(name) .. "'")
 		end
 	end
-	Manager.Register(pack, target)
+	Manager.Register(pack)
 end
 
 return Icons
