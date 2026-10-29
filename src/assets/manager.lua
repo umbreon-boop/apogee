@@ -45,7 +45,7 @@ end
 
 --@inline
 local function cachePath(pack)
-	return `{CACHE_FOLDER}/{cacheName(pack)}`
+	return CACHE_FOLDER .. "/" .. cacheName(pack)
 end
 
 local function download(pack)
@@ -69,9 +69,10 @@ local function download(pack)
 
 	local ok, err = pcall(Path.Write, archive, cacheName(pack), CACHE_FOLDER)
 	if not ok then
+		local path = cachePath(pack)
 		-- selene: allow(undefined_variable)
-		pcall(delfile, cachePath(pack))
-		warn(`AssetManager: unable to cache pack '{pack}' at '{cachePath(pack)}' ({#archive} bytes): {err}`)
+		pcall(delfile, path)
+		warn(`AssetManager: unable to cache pack '{pack}' at '{path}' ({#archive} bytes): {err}`)
 	end
 	return archive
 end
@@ -115,6 +116,7 @@ local function parseArchive(pack, data)
 	return entries
 end
 
+--@inline
 local function decompress(archive)
 	return Vec.Decompress(buffer.fromstring(archive), MAX_DECOMPRESSED).inner
 end
@@ -153,7 +155,9 @@ local function extract(pack)
 		return false
 	end
 
-	local ok, data = pcall(decompress, archive)
+	local ok, data = pcall(function()
+		return decompress(archive)
+	end)
 	if not ok then
 		if embedded then
 			error(data)
@@ -171,14 +175,10 @@ local function extract(pack)
 	return true
 end
 
--- selene: allow(undefined_variable)
+--@inline
 local function fileExists(name, folder)
 	-- selene: allow(undefined_variable)
-	if isfile then
-		-- selene: allow(undefined_variable)
-		return isfile(`{folder}/{name}`)
-	end
-	return Path.Read(name, folder) ~= nil
+	return if isfile then isfile(folder .. "/" .. name) else Path.Read(name, folder) ~= nil
 end
 
 local function imagePath(pack, name)
