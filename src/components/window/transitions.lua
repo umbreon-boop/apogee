@@ -169,8 +169,8 @@ function Transitions:Minimize()
 	self._effectTween = true
 
 	if self.Minimized then
-		if self.Minimizer then
-			self.Minimizer:_show(true, Fade.Duration)
+		if self.Maximizer then
+			self.Maximizer:_show(true, Fade.Duration)
 		end
 		Fade.To(self.Root, false, Fade.Duration, function()
 			if self._transitionId ~= transitionId or not self.Minimized or self._destroyed then
@@ -180,8 +180,8 @@ function Transitions:Minimize()
 			self._effectTween = nil
 		end)
 	else
-		if self.Minimizer then
-			self.Minimizer:_show(false, Fade.Duration)
+		if self.Maximizer then
+			self.Maximizer:_show(false, Fade.Duration)
 		end
 		local restored = self.Position
 		if self.Maximized then
@@ -202,7 +202,7 @@ function Transitions:Minimize()
 
 	self._notified = true
 	local content
-	content = self.Minimizer and self.Minimizer.Enabled
+	content = self.Maximizer and self.Maximizer.Enabled
 	and "Tap the floating button to bring the interface back."
 	or "Use the Minimize Bind keybind to toggle the interface."
 	State:Notify({Title = "Interface", Content = content, Duration = 6, _window = self})

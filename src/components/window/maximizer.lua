@@ -1,7 +1,7 @@
 --[=[
 	Floating button for restoring a minimized window. It can be dragged and accepts custom content.
 
-	@class Minimizer
+	@class Maximizer
 	@location internals/components
 ]=]
 local UserInputService = game:GetService("UserInputService")
@@ -32,40 +32,48 @@ local function getInsets(parent: Instance?): (Vector2, Vector2)
 end
 
 --[=[
-	@prop Icon string -- An icon name, hidden while a `Body` is set
-	@prop Body GuiObject? -- Custom content drawn inside the button instead of the icon
+	@prop Icon string? -- An icon name, hidden while a `Body` is set
+	@prop Text string -- Text shown when no icon is visible, hidden while a `Body` is set
+	@prop Body GuiObject? -- Custom content drawn inside the button instead of the icon and text
 	@prop Enabled boolean -- Whether the button shows up while the window is minimized
 	@prop Position UDim2 -- The position of the button's center
 ]=]
-local Minimizer = Class.Extend({Type = "Minimizer"})
+local Maximizer = Class.Extend({Type = "Maximizer"})
 
 --[=[
-	@interface MinimizerConfig
-	.Icon string? -- Defaults to `layout-grid`
-	.Body GuiObject? -- Replaces the icon when set
+	@interface MaximizerConfig
+	.Icon (string | false)? -- Defaults to `layout-grid`; false leaves the button without an icon
+	.Text string? -- Shown when no icon is visible
+	.Body GuiObject? -- Replaces the icon and text when set
 	.Enabled boolean? -- Defaults to true on touch devices
 	.Position UDim2? -- Defaults to the middle of the left edge
-	.Size number? -- The button's width and height, defaults to the theme's `Minimizer` size
-	@within Minimizer
+	.Size number? -- The button's width and height, defaults to the theme's `Maximizer` size
+	@within Maximizer
 ]=]
-export type Config = { Icon: string?, Body: GuiObject?, Enabled: boolean?, Position: UDim2?, Size: number? }
+export type Config = { Icon: (string | false)?, Text: string?, Body: GuiObject?, Enabled: boolean?, Position: UDim2?, Size: number? }
 
 local DEFAULT_ICON = "layout-grid"
 local DRAG_THRESHOLD = 6
 local PRESSED_SCALE = 0.92
 
 --[=[
-	Creates the button. Windows create one automatically, configured through `Window.Config.Minimizer`.
+	Creates the button. Windows create one automatically, configured through `Window.Config.Maximizer`.
 
-	@param config Config -- Icon or custom content, size, and placement settings.
+	@param config Config -- Icon, text or custom content, size, and placement settings.
 	@param window Window -- The window the button toggles
-	@return [Minimizer](Minimizer.md) -- The floating minimizer button attached to the window.
+	@return [Maximizer](Maximizer.md) -- The floating maximizer button attached to the window.
 ]=]
-function Minimizer.New(config: Config, window: any): any
-	local size = config.Size or Theme:Size("Minimizer")
-	local self = Class.New(Minimizer, {_window = window, _size = size})
+function Maximizer.New(config: Config, window: any): any
+	local size = config.Size or Theme:Size("Maximizer")
+	local self = Class.New(Maximizer, {_window = window, _size = size})
 
-	local icon = Icon.New(config.Icon or DEFAULT_ICON, {
+	local iconName = config.Icon
+	if iconName == nil then
+		iconName = DEFAULT_ICON
+	elseif iconName == false then
+		iconName = ""
+	end
+	local icon = Icon.New(iconName, {
 		Name = "Icon",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
@@ -73,11 +81,22 @@ function Minimizer.New(config: Config, window: any): any
 		BackgroundTransparency = 1,
 		Themed = {ImageColor3 = "Text"}
 	})
-	Icon.Watch(icon, function() end)
+	local text = Creator:New("TextLabel", {
+		Name = "Text",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = config.Text or "",
+		TextSize = math.round(size * 0.45),
+		FontFace = Font.new(Style.Font, Enum.FontWeight.Bold),
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextYAlignment = Enum.TextYAlignment.Center,
+		Themed = {TextColor3 = "Text"},
+		Visible = false
+	})
 	local body = Creator:New("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ClipsDescendants = true})
 	local scale = Creator:New("UIScale", {Scale = 1})
 
-	local radius = Theme:Size("MinimizerRadius")
+	local radius = Theme:Size("MaximizerRadius")
 	local outline = Frame.New(radius, {Shape = "Outline", Themed = {ImageColor3 = "Border"}})
 	local button = Frame.New(radius, {
 		Button = true,
@@ -91,40 +110,54 @@ function Minimizer.New(config: Config, window: any): any
 	}, {
 		outline,
 		icon,
+		text,
 		body,
 		scale
 	})
 
 	rawset(self, "Frame", button)
 	Theme:Track(function()
-		local themed = Theme:Size("MinimizerRadius")
+		local themed = Theme:Size("MaximizerRadius")
 		Theme:Style("Frame", button, themed, "Full")
 		Theme:Style("Frame", outline, themed, "Outline")
 		if not config.Size then
-			self._size = Theme:Size("Minimizer")
+			self._size = Theme:Size("Maximizer")
 			button.Size = UDim2.fromOffset(self._size, self._size)
+			text.TextSize = math.round(self._size * 0.45)
 		end
 	end, button)
 	button.ImageTransparency = window.Transparency or 0
 	icon.ImageTransparency = window.Transparency or 0
 	self._icon = icon
+	self._text = text
 	self._body = body
+	self._iconShown = true
+	self._hasBody = false
 	self._scale = Motion.Single(1, function(value)
 		scale.Scale = value
 	end)
+	Icon.Watch(icon, function(shown)
+		self._iconShown = shown
+		self:_syncVisuals()
+	end)
 
 	Class.Define(self, {
-		Icon = function(_, value: string)
+		Icon = function(_, value: string?)
 			Icon.Set(icon, value)
 		end,
-		Body = Minimizer._setBody,
-		Enabled = Minimizer._sync,
+		Text = function(_, value: string?)
+			self._text.Text = value or ""
+			self:_syncVisuals()
+		end,
+		Body = Maximizer._setBody,
+		Enabled = Maximizer._sync,
 		Position = function(_, value: UDim2)
 			button.Position = value
 		end
 	})
 	self:From({
-		Icon = config.Icon or DEFAULT_ICON,
+		Icon = iconName,
+		Text = config.Text or "",
 		Enabled = config.Enabled,
 		-- buttons of several windows stack downwards instead of covering each other
 		Position = config.Position or UDim2.new(0, size / 2 + Style.Space.S, 0.5, #window._windows * (size + Style.Space.XXS))
@@ -140,13 +173,20 @@ function Minimizer.New(config: Config, window: any): any
 	return self
 end
 
-function Minimizer:_sync()
+function Maximizer:_sync()
 	self.Frame.Visible = self.Enabled == true and self._window.Minimized
+end
+
+function Maximizer:_syncVisuals()
+	local body = self._hasBody == true
+	local icon = body ~= true and self._iconShown == true
+	self._icon.Visible = icon
+	self._text.Visible = not body and not icon and self._text.Text ~= ""
 end
 
 -- Fades the button in or out together with the window. The button fill is the button itself, and a fade only
 -- changes the children, so the fill gets its own tween.
-function Minimizer:_show(visible: boolean, duration: number)
+function Maximizer:_show(visible: boolean, duration: number)
 	local button = self.Frame
 	if not self.Enabled then
 		button.Visible = false
@@ -167,22 +207,24 @@ function Minimizer:_show(visible: boolean, duration: number)
 	Motion.Tween(button, {ImageTransparency = transparency}, duration)
 end
 
-function Minimizer:SetTransparency(value: number)
+function Maximizer:SetTransparency(value: number)
 	self.Frame.ImageTransparency = value
 	self._icon.ImageTransparency = value
+	self._text.TextTransparency = value
 end
 
-function Minimizer:_setBody(value: GuiObject?)
+function Maximizer:_setBody(value: GuiObject?)
 	for _, child in self._body:GetChildren() do
 		child.Parent = nil
 	end
 	if value then
 		value.Parent = self._body
 	end
-	self._icon.Visible = value == nil
+	self._hasBody = value ~= nil
+	self:_syncVisuals()
 end
 
-function Minimizer:_connect()
+function Maximizer:_connect()
 	local button = self.Frame
 	local origin: Vector2? = nil
 	local center = Vector2.zero
@@ -257,7 +299,7 @@ function Minimizer:_connect()
 	end)
 end
 
-function Minimizer:_moveTo(target: Vector2)
+function Maximizer:_moveTo(target: Vector2)
 	local viewport = Workspace.CurrentCamera.ViewportSize
 	local half = self._size / 2
 	local topLeftInset, bottomRightInset = getInsets(self.Frame.Parent)
@@ -273,11 +315,11 @@ end
 --[=[
 	Destroys the button.
 ]=]
-function Minimizer:Destroy()
+function Maximizer:Destroy()
 	if Drag._active == self then
 		Drag._active = nil
 	end
 	self.Frame:Destroy()
 end
 
-return Minimizer
+return Maximizer

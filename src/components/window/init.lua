@@ -9,7 +9,7 @@ local Workspace = game:GetService("Workspace")
 
 local Backdrop = require("../backdrop")
 local Dialog = require("../dialog")
-local Minimizer = require("./minimizer")
+local Maximizer = require("./maximizer")
 local Motion = require("../../services/motion")
 local Popup = require("../popup")
 local Settings = require("./settings")
@@ -35,13 +35,13 @@ local Args = require("../../services/args")
 	.Position UDim2? -- Initial screen position; defaults to centered and is corrected to remain on screen.
 	.TabWidth number? -- Preferred sidebar width; constrained by available content width.
 	.Theme string? -- Theme to activate before constructing this window.
-	.Minimizer (Minimizer.Config | false)? -- Settings for the floating toggle button, false disables it
+	.Maximizer (Maximizer.Config | false)? -- Settings for the floating toggle button, false disables it
 	.CloseCallback (() -> ())? -- Runs after the close animation and before the window is destroyed.
 	@within Window
 ]=]
 export type Config = {
 	Title: string, SubTitle: string?, Icon: string?, Size: UDim2?, Position: UDim2?,
-	TabWidth: number?, Theme: string?, Minimizer: (Minimizer.Config | false)?,
+	TabWidth: number?, Theme: string?, Maximizer: (Maximizer.Config | false)?,
 	CloseCallback: (() -> ())?
 }
 
@@ -259,8 +259,8 @@ function Window.New(config: Config, parent: Instance): any
 	self:_updateMinimumWidth()
 
 	self.TitleBar = TitleBar.New(self, config)
-	if config.Minimizer ~= false then
-		self.Minimizer = Minimizer.New(config.Minimizer or {}, self)
+	if config.Maximizer ~= false then
+		self.Maximizer = Maximizer.New(config.Maximizer or {}, self)
 	end
 
 	self._tabTransitionId = 0
@@ -330,8 +330,8 @@ function Window:SetTransparency(value: number)
 	if self.Root then
 		applyTransparency(self.Root, value)
 	end
-	if self.Minimizer then
-		self.Minimizer:SetTransparency(value)
+	if self.Maximizer then
+		self.Maximizer:SetTransparency(value)
 	end
 	for _, child in self._children or {} do
 		if child.SetTransparency then
@@ -512,9 +512,9 @@ function Window:Destroy()
 	table.clear(self._elements or {})
 	State:Orphan(self)
 	self.Root.Visible = false
-	if self.Minimizer then
-		self.Minimizer:Destroy()
-		self.Minimizer = nil
+	if self.Maximizer then
+		self.Maximizer:Destroy()
+		self.Maximizer = nil
 	end
 	local cleanup = Maid.new()
 	cleanup:Task(self.Root)

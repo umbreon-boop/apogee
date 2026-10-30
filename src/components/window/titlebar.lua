@@ -55,13 +55,13 @@ local function title(text: string?, transparency: number, key: string, size: num
 	return label
 end
 
-local function styleButtonIcon(frame: Instance, window: any, name: string, highlight: string?, text: string?)
+local function styleButtonIcon(frame: Instance, window: any, name: string, highlight: string?)
 	local request = {}
 	local completed = false
 	iconRequests[frame] = request
 	--@inline
 	local function apply(image: string?)
-		Theme:Style("TitleBarButton", frame, window, image, highlight, text)
+		Theme:Style("TitleBarButton", frame, window, image, highlight, name)
 	end
 	local image = Icons.GetIcon(name, nil, function(resolved)
 		completed = true
@@ -81,10 +81,10 @@ end
 	@param window Window -- The window of the title bar
 	@param icon string -- The icon asset
 	@param highlight string? -- The theme key of the hover tint, `Hover` by default
-	@param _text string -- A text symbol for looks without icons, this look draws the icon
+	@param _name string -- The icon name, for looks that draw a text symbol instead
 	@return { Destroy: () -> () } -- A cleanup handle that removes the title bar button look.
 ]=]
-function TitleBar.ButtonLook(button: TextButton, window: any, icon: string, highlight: string?, _text: string): any
+function TitleBar.ButtonLook(button: TextButton, window: any, icon: string, highlight: string?, _name: string): any
 	button.Size = UDim2.fromOffset(BUTTON_SIZE, BUTTON_SIZE)
 	local tint = Squircle.New(Style.Squircle.Control, {
 		ImageTransparency = 1,
@@ -135,7 +135,7 @@ end
 
 -- a stable button that keeps its click across theme changes, the active `TitleBarButton` look draws it
 --@inline
-local function button(icon: string, position: UDim2, parent: Instance, window: any, callback: () -> (), highlight: string?, text: string): TextButton
+local function button(icon: string, position: UDim2, parent: Instance, window: any, callback: () -> (), highlight: string?): TextButton
 	local frame = Creator:New("TextButton", {
 		AnchorPoint = Vector2.new(1, 0.5),
 		BackgroundTransparency = 1,
@@ -144,7 +144,7 @@ local function button(icon: string, position: UDim2, parent: Instance, window: a
 		Text = ""
 	})
 	frame.MouseButton1Click:Connect(callback)
-	styleButtonIcon(frame, window, icon, highlight, text)
+	styleButtonIcon(frame, window, icon, highlight)
 	return frame
 end
 
@@ -213,13 +213,13 @@ function TitleBar.New(window: any, config: { Title: string, SubTitle: string?, I
 				{Title = "No"}
 			}
 		})
-	end, "Destructive", "×")
+	end, "Destructive")
 	self.MaxButton = button("scan", UDim2.new(1, -46, 0.5, 0), self.Frame, window, function()
 		window:Maximize(not window.Maximized)
-	end, nil, "□")
+	end)
 	self.MinButton = button("minus", UDim2.new(1, -82, 0.5, 0), self.Frame, window, function()
 		window:Minimize()
-	end, nil, "_")
+	end)
 
 	self._window = window
 	return self
@@ -235,7 +235,7 @@ function TitleBar:SetMaximized(maximized: boolean)
 	if maximized then
 		iconName = "minimize-2"
 	end
-	styleButtonIcon(self.MaxButton, self._window, iconName, nil, "□")
+	styleButtonIcon(self.MaxButton, self._window, iconName, nil)
 end
 
 Theme:RegisterComponent("TitleBarButton", TitleBar.ButtonLook)

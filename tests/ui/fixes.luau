@@ -59,7 +59,7 @@ return function(t)
 	parent:Destroy()
 
 	-- destroying a window cleans up widgets and floating dropdowns
-	local cleanupWindow = Apogee:Window({Title = "Cleanup", Minimizer = false})
+	local cleanupWindow = Apogee:Window({Title = "Cleanup", Maximizer = false})
 	local cleanupTab = cleanupWindow:Tab("Cleanup")
 	local named = cleanupTab:Toggle({Title = "Named", Name = "CleanupWidget"})
 	local floating = cleanupTab:Dropdown({Title = "Floating", Values = {"a"}})
@@ -71,7 +71,7 @@ return function(t)
 	check(named._element.Frame.Parent == nil, "destroying a window destroys its rows")
 
 	-- a foreign tab is ignored by SelectTab
-	local other = Apogee:Window({Title = "Other", Minimizer = false})
+	local other = Apogee:Window({Title = "Other", Maximizer = false})
 	local otherTab = other:Tab("Other")
 	other:SelectTab(otherTab)
 	local before = otherTab.Container.Parent
@@ -80,7 +80,7 @@ return function(t)
 	other:Destroy()
 
 	-- horizontal tabs keep their canvas and newly added tabs update immediately
-	local horizontal = Apogee:Window({Title = "Horizontal", Minimizer = false})
+	local horizontal = Apogee:Window({Title = "Horizontal", Maximizer = false})
 	local first = horizontal:Tab("First")
 	local second = horizontal:Tab("Second")
 	horizontal:SetTabAxis("X")

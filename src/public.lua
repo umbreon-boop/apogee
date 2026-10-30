@@ -430,7 +430,7 @@ function Public._initialize()
 			container = require("./components/container"),
 			dialog = require("./components/dialog"),
 			element = require("./components/element"),
-			minimizer = require("./components/window/minimizer"),
+			maximizer = require("./components/window/maximizer"),
 			notification = Notification,
 			palette = require("./components/palette"),
 			popup = Popup,

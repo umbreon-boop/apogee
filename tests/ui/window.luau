@@ -48,27 +48,27 @@ return function(t)
 	input.InputEnded:Fire(finger)
 	check(scroll.ScrollingEnabled == true, "releasing unlocks scrolling")
 
-	-- minimizer -------------------------------------------------------------------
-	local minimizer = win.Minimizer
-	check(not minimizer.Enabled and not minimizer.Frame.Visible, "the minimizer is disabled without touch")
-	minimizer.Enabled = true
-	check(not minimizer.Frame.Visible, "the minimizer stays hidden while the window is open")
+	-- maximizer -------------------------------------------------------------------
+	local maximizer = win.Maximizer
+	check(not maximizer.Enabled and not maximizer.Frame.Visible, "the maximizer is disabled without touch")
+	maximizer.Enabled = true
+	check(not maximizer.Frame.Visible, "the maximizer stays hidden while the window is open")
 	local windowSizeBeforeMinimize, windowPositionBeforeMinimize = win.Root.Size, win.Root.Position
 	win:Minimize()
-	check(minimizer.Frame.Visible, "the minimizer shows once the window is minimized")
+	check(maximizer.Frame.Visible, "the maximizer shows once the window is minimized")
 	check(win.Root.Size == windowSizeBeforeMinimize and win._rootScale.Scale == 1,
 		"minimize fades without resizing or scaling the window contents")
-	minimizer:_moveTo(roblox.Vector2.new(100, 0))
-	check(minimizer.Position.Y.Offset == minimizer._size / 2 - 36, "the minimizer reaches the viewport's top edge")
+	maximizer:_moveTo(roblox.Vector2.new(100, 0))
+	check(maximizer.Position.Y.Offset == maximizer._size / 2 - 36, "the maximizer reaches the viewport's top edge")
 	local tap = pointer("Touch", 40, 500)
-	minimizer.Frame.InputBegan:Fire(tap)
+	maximizer.Frame.InputBegan:Fire(tap)
 	tap.Position = roblox.Vector3.new(300, 200, 0)
 	input.InputChanged:Fire(tap)
 	input.InputEnded:Fire(tap)
-	check(win.Minimized and minimizer.Position.X.Offset ~= 40, "dragging moves the minimizer without restoring")
-	minimizer.Frame.InputBegan:Fire(tap)
+	check(win.Minimized and maximizer.Position.X.Offset ~= 40, "dragging moves the maximizer without restoring")
+	maximizer.Frame.InputBegan:Fire(tap)
 	input.InputEnded:Fire(tap)
-	check(not win.Minimized and not minimizer.Frame.Visible, "a tap restores the window and hides the minimizer")
+	check(not win.Minimized and not maximizer.Frame.Visible, "a tap restores the window and hides the maximizer")
 	check(win.Root.Size == windowSizeBeforeMinimize and win.Root.Position == windowPositionBeforeMinimize and win._rootScale.Scale == 1, "restore animation returns the window to its saved geometry")
 	win:Maximize(true)
 	check(win.Maximized and win.Root.Size == win.Size and win.Root.Position == roblox.UDim2.fromOffset(16, 16), "maximize animation fills the screen")

@@ -144,11 +144,11 @@ function Popup.New(config: Config, parent: Instance?, owner: any?): any
 	local closeIcon = Icons.GetIcon("x", nil, function(image)
 		iconResolved = true
 		if closeButton.Parent then
-			pcall(Theme.Style, Theme, "TitleBarButton", closeButton, self, image, nil, "×")
+			pcall(Theme.Style, Theme, "TitleBarButton", closeButton, self, image, nil, "x")
 		end
 	end)
 	if not iconResolved then
-		Theme:Style("TitleBarButton", closeButton, self, closeIcon, nil, "×")
+		Theme:Style("TitleBarButton", closeButton, self, closeIcon, nil, "x")
 	end
 
 	local titleBar = Creator:New("Frame", {

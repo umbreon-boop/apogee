@@ -23,7 +23,7 @@ end
 local function ImGuiToggle(frame: Frame): any
 	local checkmark = Apogee.Creator:New("TextLabel", {
 		Size = UDim2.fromScale(1, 1),
-		Text = "✓",
+		Text = "V",
 		FontFace = Font.new("rbxasset://fonts/families/RobotoMono.json", Enum.FontWeight.Bold),
 		Themed = {TextColor3 = "Accent"},
 		TextTransparency = 1,
@@ -81,15 +81,22 @@ local function ImGuiSlider(frame: Frame): any
 	}
 end
 
--- ImGui titlebar buttons: square buttons with classic text symbols (_, M, ×)
-local function ImGuiTitleBarButton(button: TextButton, window: any, _icon: string, highlight: string?, text: string): any
+-- ImGui titlebar buttons: square buttons with classic text symbols
+local ImGuiSymbols = {
+	x = "X",
+	scan = "O",
+	["minimize-2"] = "O",
+	minus = "_"
+}
+
+local function ImGuiTitleBarButton(button: TextButton, window: any, _image: string, highlight: string?, name: string): any
 	button.Size = UDim2.fromOffset(24, 24)
 	local fill = Apogee.Creator:New("TextLabel", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 0,
 		BorderSizePixel = 1,
 		Parent = button,
-		Text = text,
+		Text = ImGuiSymbols[name] or "",
 		TextSize = 13,
 		FontFace = Font.new("rbxasset://fonts/families/RobotoMono.json", Enum.FontWeight.Bold),
 		Themed = {BackgroundColor3 = "Control", BorderColor3 = "ControlBorder"}
@@ -109,6 +116,32 @@ local function ImGuiTitleBarButton(button: TextButton, window: any, _icon: strin
 			entered:Disconnect()
 			left:Disconnect()
 			fill:Destroy()
+		end
+	}
+end
+
+-- ImGui notification close: a text symbol instead of the icon, tinted on hover
+local function ImGuiNotificationClose(button: TextButton, _window: any, _image: string?): any
+	local label = Apogee.Creator:New("TextLabel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = "X",
+		TextSize = 13,
+		FontFace = Font.new("rbxasset://fonts/families/RobotoMono.json", Enum.FontWeight.Bold),
+		Parent = button,
+		Themed = {TextColor3 = "SubText"}
+	})
+	local entered = button.MouseEnter:Connect(function()
+		Apogee.ThemeService:Override(label, {TextColor3 = "Text"})
+	end)
+	local left = button.MouseLeave:Connect(function()
+		Apogee.ThemeService:Override(label, {TextColor3 = "SubText"})
+	end)
+	return {
+		Destroy = function()
+			entered:Disconnect()
+			left:Disconnect()
+			label:Destroy()
 		end
 	}
 end
@@ -136,32 +169,17 @@ Apogee:AddTheme("ImGui", {
 		Icon = ImGuiIcon,
 		Toggle = ImGuiToggle,
 		Slider = ImGuiSlider,
-		TitleBarButton = ImGuiTitleBarButton
+		TitleBarButton = ImGuiTitleBarButton,
+		NotificationClose = ImGuiNotificationClose
 	}
 })
 
 local window = Apogee:Window("Apogee " .. Apogee.Version, "by boop", {
 	Icon = "orbit",
 	Theme = "Dark",
-	Minimizer = {Icon = "layout-grid"}
+	-- the ImGui icon style hides the icon, then the floating button shows its text instead
+	Maximizer = {Text = "O"}
 })
-
--- The ImGui icon style removes decorative images; keep a text restore mark on the floating mobile button instead.
-local minimizerMark = Apogee.Creator:New("TextLabel", {
-	Name = "ImGuiRestoreMark",
-	Size = UDim2.fromScale(1, 1),
-	BackgroundTransparency = 1,
-	Text = "□",
-	TextSize = 22,
-	FontFace = Font.new("rbxasset://fonts/families/RobotoMono.json", Enum.FontWeight.Bold),
-	Visible = false,
-	ZIndex = 2,
-	Themed = {TextColor3 = "Text"},
-	Parent = window.Minimizer._body
-})
-Apogee.ThemeService:Track(function(name)
-	minimizerMark.Visible = name == "ImGui"
-end, window.Minimizer.Frame)
 
 local main = window:Tab("Main", "")
 Apogee:Notify("Notification", "This is a notification", {Duration = 5})

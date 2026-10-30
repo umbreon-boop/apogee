@@ -21,11 +21,16 @@ return function(t)
 		local regTab = win:Tab("Regressions")
 		local regToast = Apogee:Notify({Title = "Default duration", Content = "closes by itself"})
 		local toastStarted = os.clock()
+		local closeHover = regToast.CloseButton:GetChildren()[1]
 		local closeIcon = regToast.CloseButton:GetChildren()[2]
 		check(regToast.CloseButton.AnchorPoint == roblox.Vector2.new(0.5, 0.5)
 			and regToast.CloseButton.Size.X.Offset >= 32 and regToast.CloseButton.Size.Y.Offset >= 32
 			and closeIcon.Position.X.Scale == 0.5 and closeIcon.Position.Y.Scale == 0.5,
 			"notification close control sits in the top-right with a mobile-sized hit area")
+		check(closeHover.Size.X.Offset < regToast.CloseButton.Size.X.Offset
+			and closeHover.Size.Y.Offset < regToast.CloseButton.Size.Y.Offset
+			and closeHover.Position.X.Scale == 0.5 and closeHover.Position.Y.Scale == 0.5,
+			"the notification close hover highlights only the icon, not the hit area")
 
 		local function visibleGroups(instance, shown)
 			local count = 0
@@ -55,9 +60,14 @@ return function(t)
 		-- a trailing options table works without nil padding, for widgets and for windows
 		local padded = regTab:Toggle("Padded", true, {Name = "RegPadded"})
 		check(Widgets.RegPadded == padded and padded.Value == true, "a widget takes a trailing options table without nil padding")
-		local optionsWindow = Apogee:Window("Options", {Minimizer = false})
-		check(optionsWindow.Minimizer == nil and optionsWindow.Title == "Options", "a window takes a trailing options table in place of the subtitle")
+		local optionsWindow = Apogee:Window("Options", {Maximizer = false})
+		check(optionsWindow.Maximizer == nil and optionsWindow.Title == "Options", "a window takes a trailing options table in place of the subtitle")
 		optionsWindow:Destroy()
+		local textWindow = Apogee:Window("Text maximizer", {Maximizer = {Icon = false, Text = "R"}})
+		local textMaximizer = textWindow.Maximizer
+		check(not textMaximizer._icon.Visible and textMaximizer._text.Visible and textMaximizer._text.Text == "R",
+			"a maximizer without an icon shows its custom text")
+		textWindow:Destroy()
 
 		-- input fires once per change, and numeric inputs accept partial numbers
 		local inputFires = 0
@@ -431,13 +441,13 @@ return function(t)
 		check(after == motors, "destroyed widgets leave no theme callbacks behind")
 		check(Drag._active == nil, "a slider destroyed during a drag releases the shared drag lock")
 		check(not table.find(win._children or {}, shortLived), "a destroyed popup leaves its parent's child list")
-		local owner = Apogee:Window("Owner", {Minimizer = false})
+		local owner = Apogee:Window("Owner", {Maximizer = false})
 		local owned = owner:Popup("Owned")
 		owner:Destroy()
 		check(owned._destroyed and not Apogee:HasOverlay(), "destroying a window destroys its popups, so they stop blocking input")
 
 		-- window transitions: nothing interrupts a close, and maximize keeps the restore size
-		local closing2 = Apogee:Window("Closing", {Minimizer = false})
+		local closing2 = Apogee:Window("Closing", {Maximizer = false})
 		services.TweenService.Create = function(service, instance, info, properties)
 			local tween = create(service, instance, info, properties)
 			local play = tween.Play
@@ -488,10 +498,10 @@ return function(t)
 		win:_updateTabSection(400)
 		win:_updateTabSection(win.Root.Size.X.Offset)
 		check(win.TabWidth == preferred, "a narrow layout does not shrink the sidebar for good")
-		win.Minimizer.Enabled = true
+		win.Maximizer.Enabled = true
 		win:Minimize()
 		win:Minimize()
-		win.Minimizer.Enabled = false
+		win.Maximizer.Enabled = false
 		check(win.TabWidth == preferred, "minimize and restore keep the sidebar width")
 		win:SetTabWidth(200)
 		check(win.TabWidth == 200, "a manual sidebar width can be larger than the default width")
@@ -501,8 +511,8 @@ return function(t)
 		check(win.Splitter.Size.X.Offset > Apogee.internals.assets.themes.Space.XS, "the splitter hit area is wider than the gap it sits in")
 
 		-- Minimize and restore never scale or resize window contents; they only fade the unchanged layout.
-		local minimizer2 = win.Minimizer
-		minimizer2.Enabled = true
+		local maximizer2 = win.Maximizer
+		maximizer2.Enabled = true
 		local scaleTweens, sizeTweens
 		services.TweenService.Create = function(service, instance, info, properties)
 			if instance == win._rootScale then
@@ -515,10 +525,10 @@ return function(t)
 		scaleTweens, sizeTweens = 0, 0
 		local sizeBeforeMinimize = win.Root.Size
 		win:Minimize()
-		check(minimizer2.Frame.Visible, "the minimizer button shows when the minimize starts, not after it ends")
+		check(maximizer2.Frame.Visible, "the maximizer button shows when the minimize starts, not after it ends")
 		check(scaleTweens == 0 and sizeTweens == 0 and win.Root.Size == sizeBeforeMinimize,
 			"minimize does not scale or resize any window elements")
-		minimizer2:_moveTo(roblox.Vector2.new(500, 300))
+		maximizer2:_moveTo(roblox.Vector2.new(500, 300))
 		local positionTweens = 0
 		services.TweenService.Create = function(service, instance, info, properties)
 			if instance == win._rootScale then
@@ -531,7 +541,7 @@ return function(t)
 		scaleTweens = 0
 		win:Minimize()
 		services.TweenService.Create = create
-		minimizer2.Enabled = false
+		maximizer2.Enabled = false
 		check(scaleTweens == 0 and sizeTweens == 0 and positionTweens == 0 and win._rootScale.Scale == 1,
 			"restore does not scale or resize any window elements")
 		check(win.Root.Position == win.Position, "a restore keeps the window at its own place")
@@ -594,34 +604,42 @@ return function(t)
 		local listChevron = single._inner:FindFirstChild("Chevron")
 		local iconToast = Apogee:Notify({Title = "Icon", Content = "toast"})
 		local titleIcon = win.TitleBar.Frame:FindFirstChildOfClass("Frame"):FindFirstChild("Icon")
-		local minimizerIcon = win.Minimizer.Frame:FindFirstChild("Icon")
+		local maximizerIcon = win.Maximizer.Frame:FindFirstChild("Icon")
+		local maximizerText = win.Maximizer._text
 		check(iconTab._icon.Visible and chevron.Visible and listChevron.Visible and iconToast.Icon.Visible
-			and (titleIcon == nil or titleIcon.Visible) and minimizerIcon.Visible, "the default theme shows the decorative icons")
+			and (titleIcon == nil or titleIcon.Visible) and maximizerIcon.Visible and not maximizerText.Visible,
+			"the default theme shows the decorative icons")
 		Apogee:SetTheme("ImGui")
 		check(not iconTab._icon.Visible and iconTab._icon.Image == "", "the ImGui theme hides the tab icon")
 		check(not chevron.Visible and chevronButton._element.LabelHolder.Size.X.Offset == -24, "the ImGui theme hides the button chevron")
 		check(not listChevron.Visible, "the ImGui theme hides the dropdown chevron")
 		check(not iconToast.Icon.Visible and iconToast.LabelHolder.Position.X.Offset == 14, "the ImGui theme hides the toast icon")
+		local closeText = iconToast.CloseButton:FindFirstChildOfClass("TextLabel")
+		check(iconToast.CloseButton:FindFirstChild("CloseIcon") == nil and closeText ~= nil and closeText.Text == "×",
+			"the ImGui theme replaces the notification close icon with its text symbol")
 		check(titleIcon == nil or not titleIcon.Visible, "the ImGui theme hides the window icon")
-		check(not minimizerIcon.Visible and minimizerIcon.Image == "", "the ImGui theme hides the minimizer icon")
-		check(win.Minimizer._body:FindFirstChild("ImGuiRestoreMark").Visible, "the ImGui mobile minimizer replaces its hidden icon with a restore mark")
+		check(not maximizerIcon.Visible and maximizerIcon.Image == "" and maximizerText.Visible and maximizerText.Text == "O",
+			"the ImGui theme hides the maximizer icon and shows its text")
 		Apogee:SetTheme("Dark")
 		check(iconTab._icon.Visible and chevron.Visible and listChevron.Visible and iconToast.Icon.Visible,
 			"switching back from ImGui shows the icons again")
-		check(minimizerIcon.Visible and minimizerIcon.Image == Apogee:GetIcon("layout-grid"), "switching back restores the minimizer icon")
-		check(not win.Minimizer._body:FindFirstChild("ImGuiRestoreMark").Visible, "switching back hides the ImGui-only mobile restore mark")
+		check(maximizerIcon.Visible and maximizerIcon.Image == Apogee:GetIcon("layout-grid") and not maximizerText.Visible,
+			"switching back restores the maximizer icon and hides its text")
+		check(iconToast.CloseButton:FindFirstChild("CloseIcon") ~= nil
+			and iconToast.CloseButton:FindFirstChildOfClass("TextLabel") == nil,
+			"switching back restores the notification close icon")
 		iconToast:Close()
 
 		-- a palette can replace role sizes, and a live theme switch resizes the parts that exist already
 		local sizedCard = Widgets.MyToggle._element.Frame
 		local sizedTab = win.Tabs[1].Frame
 		local sizedField = Widgets.Dropdown._inner
-		local sizedMinimizer = win.Minimizer
-		Apogee:AddTheme("Sized", {Size = {Row = 30, Tab = 20, Control = 22, Button = 24, Option = 26, Minimizer = 40}})
+		local sizedMaximizer = win.Maximizer
+		Apogee:AddTheme("Sized", {Size = {Row = 30, Tab = 20, Control = 22, Button = 24, Option = 26, Maximizer = 40}})
 		Apogee:SetTheme("Sized")
 		check(sizedCard.Size.Y.Offset == 30, "a palette Size replaces the card row height")
 		check(sizedTab.Size.Y.Offset == 20 and sizedField.Size.Y.Offset == 22, "a palette Size replaces the tab and field heights")
-		check(sizedMinimizer._size == 40 and sizedMinimizer.Frame.Size.X.Offset == 40, "a palette Size replaces the minimizer size")
+		check(sizedMaximizer._size == 40 and sizedMaximizer.Frame.Size.X.Offset == 40, "a palette Size replaces the maximizer size")
 		check(ThemeService:Size("List") == 402, "a size that the palette does not set keeps the default")
 		Widgets.Dropdown:Open()
 		check(Widgets.Dropdown._options[1].Frame.Size.Y.Offset == 26, "a palette Size replaces the dropdown row height")
@@ -631,7 +649,7 @@ return function(t)
 			"a palette Size replaces the dialog button and tray heights")
 		Apogee:SetTheme("Dark")
 		check(sizedCard.Size.Y.Offset == 42 and sizedTab.Size.Y.Offset == 30 and sizedField.Size.Y.Offset == 30
-			and sizedMinimizer._size == 48, "a live switch back restores the default sizes")
+			and sizedMaximizer._size == 48, "a live switch back restores the default sizes")
 		check(sizedDialog._actions[1].Frame.Size.Y.Offset == 32 and sizedDialog.ButtonHolderFrame.Size.Y.Offset == 56,
 			"an open dialog follows a live size switch")
 		sizedDialog:Destroy()

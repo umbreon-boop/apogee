@@ -71,8 +71,8 @@ local Squircle = {
 	@prop Option number -- Height of a dropdown list row
 	@prop List number -- Largest height of a dropdown list
 	@prop ListWidth number -- Smallest width of a dropdown list
-	@prop Minimizer number -- Width and height of the minimizer button
-	@prop MinimizerRadius number -- Corner size of the minimizer button
+	@prop Maximizer number -- Width and height of the maximizer button
+	@prop MaximizerRadius number -- Corner size of the maximizer button
 	@within Themes
 ]=]
 local Size = {
@@ -83,8 +83,8 @@ local Size = {
 	Option = 32,
 	List = 402,
 	ListWidth = 170,
-	Minimizer = 48,
-	MinimizerRadius = 14
+	Maximizer = 48,
+	MaximizerRadius = 14
 }
 
 local Dark = {

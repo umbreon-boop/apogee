@@ -39,6 +39,7 @@ local active = {}
 local PAD = 14
 local ICON_SIZE = 22
 local CLOSE_SIZE = 32
+local CLOSE_HIGHLIGHT_SIZE = 20
 -- Match the window close control's center: 10 px from the right plus half its 28 px button,
 -- and half the 42 px title bar height from the top. Keep the toast hit area larger around that center.
 local CLOSE_CENTER_RIGHT = 10 + 28 / 2
@@ -84,6 +85,46 @@ function Notification.Init(gui: ScreenGui)
 			Padding = UDim.new(0, Style.Space.XXS)
 		})
 	})
+end
+
+--[=[
+	The default `NotificationClose` style: a small hover highlight behind the close icon.
+
+	@param button TextButton -- The close button
+	@param _window any? -- The owning window
+	@param image string? -- The close icon asset
+	@return { Destroy: () -> () } -- A cleanup handle that removes the close look.
+]=]
+function Notification.CloseLook(button: TextButton, _window: any, image: string?): any
+	local hover = Squircle.New(Style.Squircle.Small, {
+		Size = UDim2.fromOffset(CLOSE_HIGHLIGHT_SIZE, CLOSE_HIGHLIGHT_SIZE),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		ImageTransparency = 1,
+		ZIndex = 1,
+		Parent = button,
+		Themed = {ImageColor3 = "Hover"}
+	})
+	local icon = Creator:New("ImageLabel", {
+		Name = "CloseIcon",
+		Size = UDim2.fromOffset(14, 14),
+		Position = UDim2.fromScale(0.5, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundTransparency = 1,
+		Image = image or "",
+		ZIndex = 2,
+		Parent = button,
+		Themed = {ImageColor3 = "SubText"}
+	})
+	local _, fade = Motion.Bind(1, hover, "ImageTransparency", true)
+	local disconnect = Pointer.Hover(button, fade, {Rest = 1, Hover = 0.85, Press = 0.7})
+	return {
+		Destroy = function()
+			disconnect()
+			hover:Destroy()
+			icon:Destroy()
+		end
+	}
 end
 
 --[=[
@@ -141,29 +182,7 @@ function Notification.New(config: Config, window: any?): any
 		self.SubContentLabel
 	})
 
-	-- Rounded square close button
-	local closeHover = Squircle.New(Style.Squircle.Small, {
-		ImageTransparency = 1,
-		ZIndex = 1,
-		Themed = {ImageColor3 = "Hover"}
-	})
-	local closeIcon = Creator:New("ImageLabel", {
-		Name = "CloseIcon",
-		Size = UDim2.fromOffset(14, 14),
-		Position = UDim2.fromScale(0.5, 0.5),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundTransparency = 1,
-		ZIndex = 2,
-		Themed = {ImageColor3 = "SubText"}
-	})
-	local closeImage = Icons.GetIcon("x", nil, function(image)
-		if closeIcon.Parent then
-			closeIcon.Image = image or ""
-		end
-	end)
-	if closeImage then
-		closeIcon.Image = closeImage
-	end
+	-- Rounded close button; the look draws only around the icon, the button keeps its larger hit area
 	self.CloseButton = Creator:New("TextButton", {
 		Text = "",
 		Position = UDim2.new(1, -CLOSE_CENTER_RIGHT, 0, CLOSE_CENTER_TOP),
@@ -172,10 +191,13 @@ function Notification.New(config: Config, window: any?): any
 		BackgroundTransparency = 1,
 		Active = true,
 		ZIndex = 1
-	}, {closeHover, closeIcon})
-
-	local _, closeFade = Motion.Bind(1, closeHover, "ImageTransparency", true)
-	Pointer.Hover(self.CloseButton, closeFade, {Rest = 1, Hover = 0.85, Press = 0.7})
+	})
+	local closeImage = Icons.GetIcon("x", nil, function(image)
+		if self.CloseButton.Parent then
+			pcall(Theme.Style, Theme, "NotificationClose", self.CloseButton, self, image)
+		end
+	end)
+	Theme:Style("NotificationClose", self.CloseButton, self, closeImage)
 
 	-- No drop shadow: its square bounds would peek out past the rounded toast
 	local surface = Backdrop.New(Style.Squircle.Container)
@@ -296,5 +318,7 @@ function Notification.DestroyAll()
 		pcall(notification.Destroy, notification)
 	end
 end
+
+Theme:RegisterComponent("NotificationClose", Notification.CloseLook)
 
 return Notification

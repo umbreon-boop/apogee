@@ -15,7 +15,7 @@ return function(t)
 	check(label.Text == "Updated", "changing locale restores the source text")
 	label:Destroy()
 
-	local shorthand = Apogee:Window("Shorthand", "Positional API", {Minimizer = false})
+	local shorthand = Apogee:Window("Shorthand", "Positional API", {Maximizer = false})
 	local shorthandTab = shorthand:Tab("Page", "home")
 	local shorthandToggle = shorthandTab:Toggle("Enabled", true)
 	local shorthandButton = shorthandTab:Button("Action", function() end, "Run action")
