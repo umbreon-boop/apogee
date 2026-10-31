@@ -615,7 +615,7 @@ return function(t)
 		check(not listChevron.Visible, "the ImGui theme hides the dropdown chevron")
 		check(not iconToast.Icon.Visible and iconToast.LabelHolder.Position.X.Offset == 14, "the ImGui theme hides the toast icon")
 		local closeText = iconToast.CloseButton:FindFirstChildOfClass("TextLabel")
-		check(iconToast.CloseButton:FindFirstChild("CloseIcon") == nil and closeText ~= nil and closeText.Text == "×",
+		check(iconToast.CloseButton:FindFirstChild("CloseIcon") == nil and closeText ~= nil and closeText.Text == "X",
 			"the ImGui theme replaces the notification close icon with its text symbol")
 		check(titleIcon == nil or not titleIcon.Visible, "the ImGui theme hides the window icon")
 		check(not maximizerIcon.Visible and maximizerIcon.Image == "" and maximizerText.Visible and maximizerText.Text == "O",

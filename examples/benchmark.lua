@@ -72,7 +72,6 @@ for i = 1, 200 do
 	end
 end
 
-window:SelectTab(1)
 
 Apogee:Notify({
 	Title = "Stress Test Ready",

@@ -31,5 +31,3 @@ end})
 cancel:Button({Title = "Cancel", Callback = function()
 	print("Cancelled")
 end})
-
-window:SelectTab(1)

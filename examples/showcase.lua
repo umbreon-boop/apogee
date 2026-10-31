@@ -1,11 +1,11 @@
 local Apogee = require("../src/init")
 local Widgets = Apogee.Widgets
 
--- demonstrate modularity: register an authentic Dear ImGui Dark theme. Its `Components` replace the styles of the
--- themeable parts, and the theme service restyles the existing interface on every theme change.
+-- `Components` replace the styles of the themeable parts, and the theme service restyles
+--  the existing interface on every theme change.
 local squircle = Apogee.ThemeService:Default("Frame")
 
--- ImGui draws every surface square: the default squircle with a 1 px corner
+-- the default squircle with a 1 px corner
 local function ImGuiFrame(instance: any, _radius: number, shape: string)
 	squircle(instance, 1, shape)
 end
@@ -14,12 +14,12 @@ local function ImGuiCorner(corner: UICorner)
 	corner.CornerRadius = UDim.new(0, 0)
 end
 
--- ImGui draws no decorative icons: the tabs, the title and the toasts show text only
+-- the tabs, the title and the toasts show text only
 local function ImGuiIcon(label: ImageLabel)
 	label.Image = ""
 end
 
--- ImGui checkbox: a sharp 18x18 box with a check mark when active
+-- a sharp 18x18 box with a check mark when active
 local function ImGuiToggle(frame: Frame): any
 	local checkmark = Apogee.Creator:New("TextLabel", {
 		Size = UDim2.fromScale(1, 1),
@@ -49,7 +49,7 @@ local function ImGuiToggle(frame: Frame): any
 	}
 end
 
--- ImGui slider: a sharp rectangular frame with an accent fill bar and the value text on top
+-- a sharp rectangular frame with an accent fill bar and the value text on top
 local function ImGuiSlider(frame: Frame): any
 	local fill = Apogee.Creator:New("Frame", {Size = UDim2.fromScale(0, 1), Themed = {BackgroundColor3 = "Accent"}})
 	local display = Apogee.Creator:New("TextLabel", {
@@ -81,7 +81,7 @@ local function ImGuiSlider(frame: Frame): any
 	}
 end
 
--- ImGui titlebar buttons: square buttons with classic text symbols
+-- square buttons with classic text symbols
 local ImGuiSymbols = {
 	x = "X",
 	scan = "O",
@@ -120,7 +120,7 @@ local function ImGuiTitleBarButton(button: TextButton, window: any, _image: stri
 	}
 end
 
--- ImGui notification close: a text symbol instead of the icon, tinted on hover
+-- a text symbol instead of the icon, tinted on hover
 local function ImGuiNotificationClose(button: TextButton, _window: any, _image: string?): any
 	local label = Apogee.Creator:New("TextLabel", {
 		Size = UDim2.fromScale(1, 1),
@@ -227,7 +227,6 @@ main:Button("Open another window", function()
 	local extra = Apogee:Window("Second window", "", {Size = window.Size})
 	extra:SetTransparency(window.Transparency)
 	extra:Tab("Hello", "star"):Paragraph("Hi!", "Close me from the title bar.")
-	extra:SelectTab(1)
 end, "Several windows can be open at once")
 
 local customSection = main:Section("Demonstration Section")
@@ -359,7 +358,6 @@ end, "Placeholder", {Name = "Input"})
 Apogee.Config:SetFolder("ApogeeScriptHub/specific-game")
 window:Settings()
 
-window:SelectTab(1)
 Apogee:Notify("Apogee", "The script has been loaded.", {Duration = 8})
 
 -- loads autoload.bin if it exists.

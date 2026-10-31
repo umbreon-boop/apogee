@@ -70,6 +70,15 @@ return function(t)
 		"destroying a window destroys floating dropdowns")
 	check(named._element.Frame.Parent == nil, "destroying a window destroys its rows")
 
+	-- a new window selects its first tab without an explicit SelectTab call
+	local defaultWindow = Apogee:Window({Title = "Default tab", Maximizer = false})
+	local defaultFirst = defaultWindow:Tab("First")
+	local defaultSecond = defaultWindow:Tab("Second")
+	check(defaultWindow._selected == defaultFirst and defaultFirst.Selected and not defaultSecond.Selected
+		and defaultFirst.Container.Visible and defaultWindow.TabDisplay.Text == "First",
+		"a new window selects its first tab by default")
+	defaultWindow:Destroy()
+
 	-- a foreign tab is ignored by SelectTab
 	local other = Apogee:Window({Title = "Other", Maximizer = false})
 	local otherTab = other:Tab("Other")

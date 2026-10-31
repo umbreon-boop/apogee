@@ -572,7 +572,7 @@ function Window:Settings(config: any, ...: any): any
 end
 
 --[=[
-	Adds a tab to the sidebar.
+	Adds a tab to the sidebar. The first tab of a window is selected automatically.
 
 	@param config Tab.Config -- Tab title and optional icon.
 	@return [Tab](Tab.md) -- The new tab added to this window.
@@ -584,6 +584,9 @@ function Window:Tab(config: any, ...: any): any
 	table.insert(self.Tabs, tab)
 	if self._horizontalTabs then
 		self:_updateTabSection(self.Root.Size.X.Offset)
+	end
+	if self._selected == nil then
+		self:SelectTab(tab)
 	end
 	return tab
 end
