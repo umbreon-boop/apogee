@@ -1,4 +1,4 @@
-local Apogee = require("../src/init")
+local Apogee = loadstring(game:HttpGet("https://github.com/umbreon-boop/apogee/releases/latest/download/artifact.lua"))()
 
 -- Shorthand: Toggle(title, value, callback, description, options)
 local window = Apogee:Window("Toggle example")

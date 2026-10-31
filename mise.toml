@@ -35,16 +35,13 @@ tools = { "aqua:Kampfkarren/selene" = "latest" }
 run = "umbra fmt && selene src/*"
 
 [tasks.test]
-description = "Build the examples and run the interface tests against the mocked environment"
+description = "Build the library and run the interface tests against the mocked environment"
 run = """
 set -e
 umbra update
-mkdir -p dist/examples
-for file in examples/*.lua; do
-	umbra build "$file" -o "dist/examples/$(basename "$file")"
-done
-cp dist/examples/showcase.lua dist/showcase.lua
-lune run tests/ui.luau dist/showcase.lua
+mkdir -p target/test
+umbra build src/init.lua -o target/test/apogee.lua
+lune run tests/ui.luau examples/showcase.lua target/test/apogee.lua
 """
 
 [tasks.doc]

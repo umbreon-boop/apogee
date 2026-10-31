@@ -1,4 +1,4 @@
-local Apogee = require("../src/init")
+local Apogee = loadstring(game:HttpGet("https://github.com/umbreon-boop/apogee/releases/latest/download/artifact.lua"))()
 
 -- Shorthand: ColorPicker(title, value, callback, transparency, options)
 local window = Apogee:Window("ColorPicker example")

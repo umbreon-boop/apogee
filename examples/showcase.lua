@@ -1,4 +1,4 @@
-local Apogee = require("../src/init")
+local Apogee = loadstring(game:HttpGet("https://github.com/umbreon-boop/apogee/releases/latest/download/artifact.lua"))()
 local Widgets = Apogee.Widgets
 
 -- `Components` replace the styles of the themeable parts, and the theme service restyles

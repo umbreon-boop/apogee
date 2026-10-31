@@ -3,7 +3,7 @@
 	one has to run and show its interface: they run last, and each is destroyed before the next, so the loops
 	an example spawns never reach the other areas.
 ]]
-local EXAMPLES = "dist/examples"
+local EXAMPLES = "examples"
 
 return function(t)
 	local check = t.check

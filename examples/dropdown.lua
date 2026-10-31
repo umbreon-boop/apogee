@@ -1,4 +1,4 @@
-local Apogee = require("../src/init")
+local Apogee = loadstring(game:HttpGet("https://github.com/umbreon-boop/apogee/releases/latest/download/artifact.lua"))()
 
 -- Shorthand: Dropdown(title, values, value, callback, options)
 local window = Apogee:Window("Dropdown example")

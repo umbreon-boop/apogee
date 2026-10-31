@@ -1,4 +1,4 @@
-local Apogee = require("../src/init")
+local Apogee = loadstring(game:HttpGet("https://github.com/umbreon-boop/apogee/releases/latest/download/artifact.lua"))()
 
 local window = Apogee:Window("Apogee Stress Test", "Dropdowns & Random Elements", {
 	Icon = "orbit",

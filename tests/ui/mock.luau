@@ -41,8 +41,18 @@ local function decodeBase64(input: string): string
 	return table.concat(output)
 end
 
-local BUNDLE = process.args[1] or "dist/showcase.lua"
+local BUNDLE = process.args[1] or "examples/showcase.lua"
+local WEB_BUNDLE = process.args[2] or "target/test/apogee.lua"
 local SANDBOX = (process.env.TMPDIR or "/tmp") .. "/affluent-tests"
+
+local webBundle
+-- Examples fetch the release artifact; the mock serves the bundle built from the current source instead.
+local function fetchWebBundle(): string
+	if not webBundle then
+		webBundle = fs.readFile(WEB_BUNDLE)
+	end
+	return webBundle
+end
 
 -- Empties the saved configuration directory, so a bundle never reads the state of the one before it
 local function resetSandbox()
@@ -475,6 +485,10 @@ local function makeEnv(targetGenv, targetHui)
 		game = {
 			GetService = function(_, name)
 				return services[name] or error("unknown service " .. name)
+			end,
+			HttpGet = function(_, url)
+				assert(type(url) == "string" and url ~= "", "HttpGet expects a URL")
+				return fetchWebBundle()
 			end
 		},
 		Instance = Instance,
@@ -525,6 +539,9 @@ local function makeEnv(targetGenv, targetHui)
 			return files
 		end
 	}, {__index = getfenv(1)})
+	env.loadstring = function(source: string)
+		return luau.load(source, {debugName = WEB_BUNDLE, environment = env})
+	end
 	for key, value in roblox do
 		if rawget(env, key) == nil and key ~= "Instance" then
 			env[key] = value
